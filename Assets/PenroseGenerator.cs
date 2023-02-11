@@ -6,11 +6,13 @@ struct Tile {
     public Vector3 point;
     public Vector3[] vertices;
     public int[,] k;
+    public bool culled;
 
-    public Tile(Vector3 point, int[,] k, Vector3[] vertices) {
+    public Tile(Vector3 point, int[,] k, Vector3[] vertices, bool culled) {
         this.point = point;
         this.k = k;
         this.vertices = vertices;
+        this.culled = culled;
     }
 }
 
@@ -56,12 +58,13 @@ public class PenroseGenerator : MonoBehaviour
 
         // Debug.Log(string.Join(", ", icos));
 
-        int p = 2; // number of parallel planes
-        Plane[,] planes = new Plane[6, p];
+        int p = 4; // number of parallel planes
+        Plane[,] planes = new Plane[6, p+1];
 
         for (int i = 0; i < 6; i++) {
             for (int j = 0; j < p; j++) {
-                planes[i, j] = new Plane(icos[i], randomNumbers[i] + j);
+                // ANY INTEGER OFFSET IS BREAKING EVERYTHING...
+                planes[i, j] = new Plane(icos[i], randomNumbers[i] + j - 2);
             }
         }
 
@@ -75,16 +78,28 @@ public class PenroseGenerator : MonoBehaviour
             for (int i = h + 1; i < 6; i++) {
                 for (int j = i + 1; j < 6; j++) {
                     // last three are for which basis plane for each given basis
-                    if (h != i && i != j && j != h) {
-                        for (int k = 0; k < p; k++) {
-                            for (int l = 0; l < p; l++) {
-                                for (int m = 0; m < p; m++) {
+                    // if (h != i && i != j && j != h) {
+                        for (int k = 0; k < planes.GetLength(1) - 1; k++) {
+                            for (int l = 0; l < planes.GetLength(1) - 1; l++) {
+                                for (int m = 0; m < planes.GetLength(1) - 1; m++) {
                                     var det = Vector3.Dot( Vector3.Cross( planes[j, m].normal, planes[i, l].normal ), planes[h, k].normal );
                                     
                                     Vector3 intersection = 
                                         ( -( planes[h, k].distance * Vector3.Cross( planes[i, l].normal, planes[j, m].normal ) ) -
                                         ( planes[i, l].distance * Vector3.Cross( planes[j, m].normal, planes[h, k].normal ) ) -
                                         ( planes[j, m].distance * Vector3.Cross( planes[h, k].normal, planes[i, l].normal ) ) ) / det;
+
+                                    // check if intersection is within chunk
+                                    bool outside = false;
+                                    // for (int ind = 0; ind < 6; ind++) {
+                                    //     if (Vector3.Dot(planes[ind, 0].normal, intersection - planes[ind, 0].normal * planes[ind, 0].distance) < 0
+                                    //         || Vector3.Dot(planes[ind, p - 1].normal, intersection - planes[ind, p - 1].normal * planes[ind, p - 1].distance) >= 0) {
+                                    //             outside = true;
+                                    //             break;
+                                    //     }
+                                    // }
+
+                                    
 
                                     points.Add(intersection);
                                     
@@ -94,13 +109,17 @@ public class PenroseGenerator : MonoBehaviour
                                             // magic formula which I don't understand :)
                                             starter_k[ind, ind2] = Mathf.CeilToInt(Vector3.Dot(icos[ind], intersection) - randomNumbers[ind]);
                                         }
+                                        if (starter_k[ind, 0] >= planes.GetLength(1)/2 || starter_k[ind, 0] < -1* planes.GetLength(1)/2) { outside = true; }
                                     }
 
+                                    if (outside) { break; }
+
                                     for (int indy = 0; indy < 8; indy++) {
-                                        // replace the 3 plane values with their offset indices
-                                        starter_k[h,indy] = k + (indy & 1);
-                                        starter_k[i,indy] = l + (indy >> 1 & 1);
-                                        starter_k[j,indy] = m + (indy >> 2 & 1);
+                                        // replace the 3 intersecting plane values with their offset indices
+                                        // PRETTY SURE IT SHOULDN'T BE KLM here, it should be 
+                                        starter_k[h,indy] = k-(planes.GetLength(1)/2)+(indy & 1);
+                                        starter_k[i,indy] = l-(planes.GetLength(1)/2)+(indy >> 1 & 1);
+                                        starter_k[j,indy] = m-(planes.GetLength(1)/2)+(indy >> 2 & 1);
                                     }
 
                                     Vector3[] position = new Vector3[8];
@@ -113,12 +132,12 @@ public class PenroseGenerator : MonoBehaviour
                                     }
 
                                     // Make the Tile object
-                                    Tile curr = new Tile(intersection, starter_k, position);
+                                    Tile curr = new Tile(intersection, starter_k, position, outside);
                                     tiles.Add(curr);
                                 }   
                             }
                         }
-                    }
+                    // }
                 }
             }
         }
@@ -139,11 +158,14 @@ public class PenroseGenerator : MonoBehaviour
         if (displayPlanes) {
             for (int i = 0; i < planes.GetLength(0); i++)
             {
-                for (int j = 0; j < planes.GetLength(1); j++)
-                {
-                    renderPlane(planes[i, j].flipped);
-                    renderPlane(planes[i, j]);
-                }
+                // for (int j = 0; j < planes.GetLength(1); j++)
+                // {
+                    renderPlane(planes[i, 0].flipped, true);
+                    renderPlane(planes[i, 0], true);
+
+                    renderPlane(planes[i, p-1].flipped, false);
+                    renderPlane(planes[i, p-1], false);
+                // }
             }
         }
 
@@ -153,7 +175,7 @@ public class PenroseGenerator : MonoBehaviour
         //     Debug.Log(tiles[tileInd].vertices[i]);
         // }
         for (int i = 0; i < numTiles; i++) {
-            renderRhomb(tiles[i].vertices);
+            renderRhomb(tiles[i].vertices, tiles[i].culled);
         }
 
         
@@ -185,7 +207,7 @@ public class PenroseGenerator : MonoBehaviour
         }
     }
 
-    void renderRhomb(Vector3[] vertices) {
+    void renderRhomb(Vector3[] vertices, bool culled) {
         // MeshFilter meshFilter = GetComponent<MeshFilter>();
         Mesh mesh = new Mesh();
         // meshFilter.mesh = mesh;
@@ -209,7 +231,27 @@ public class PenroseGenerator : MonoBehaviour
             1, 7, 5,
             
             2, 6, 3, // 2, 3, 6, 7
-            3, 6, 7
+            3, 6, 7,
+
+            // DEBUG
+
+            2, 0, 1, // 0, 1, 2, 3
+            2, 1, 3,
+
+            1, 0, 5, // 0, 1, 4, 5
+            5, 0, 4,
+
+            4, 0, 6, // 0, 2, 4, 6
+            6, 0, 2,
+
+            5, 6, 7, // 4, 5, 6, 7
+            6, 5, 4,
+
+            3, 1, 7, // 1, 3, 5, 7
+            7, 1, 5,
+            
+            6, 2, 3, // 2, 3, 6, 7
+            6, 3, 7
         };
 
         mesh.triangles = triangles;
@@ -222,6 +264,12 @@ public class PenroseGenerator : MonoBehaviour
         MeshFilter meshFilter = terrainMesh.AddComponent<MeshFilter>();
         MeshRenderer meshRenderer = terrainMesh.AddComponent<MeshRenderer>();
 
+
+        Material material = new Material(Shader.Find("Standard"));
+        if (culled)
+         {material.color = Color.red;}
+        else { material.color = Color.white; }
+
         meshCollider.sharedMesh = mesh;
         meshRenderer.material = material;
 
@@ -233,8 +281,8 @@ public class PenroseGenerator : MonoBehaviour
         terrainMesh.transform.SetParent(transform);
     }
 
-    void renderPlane(Plane plane) {
-        float length = 5;
+    void renderPlane(Plane plane, bool side) {
+        float length = 10;
         GameObject square = new GameObject("Square");
         MeshFilter meshFilter = square.AddComponent<MeshFilter>();
         MeshRenderer meshRenderer = square.AddComponent<MeshRenderer>();
@@ -273,7 +321,9 @@ public class PenroseGenerator : MonoBehaviour
 
         // Scale the square GameObject to have a length of n
         square.transform.localScale = new Vector3(length, length, length);
-
+        Material material = new Material(Shader.Find("Standard"));
+        if (side) {material.color = Color.green;}
+        else {material.color = Color.blue;}
         meshRenderer.material = material;
     }
 
