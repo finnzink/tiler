@@ -19,12 +19,17 @@ public class PenroseGenerator : MonoBehaviour
     public List<Vector3> icos = new List<Vector3>();
     public GameObject spherePrefab;
     public Material material;
+    public MeshFilter meshFilter;
+    public MeshCollider meshCollider;
+    public Mesh mesh;
 
     // Start is called before the first frame update
     void Start()
     {
-
-        material.color = new Color(1, 1, 1, .5f);
+        mesh = new Mesh();
+        // meshFilter = GetComponent<MeshFilter>();
+        meshCollider = GetComponent<MeshCollider>();
+        material.color = new Color(1, 1, 1, 1);
         // generate offsets
         int seed = (int)System.DateTime.Now.Ticks;
         Random.InitState(seed);
@@ -33,7 +38,7 @@ public class PenroseGenerator : MonoBehaviour
         for (int i = 0; i < randomNumbers.Length; i++) {
             randomNumbers[i] = Random.Range(0f, 1f);
             // Debug.Log(randomNumbers);
-            // randomNumbers[i] = .5f;
+            // randomNumbers[i] = 0f;
         }
 
         // Debug.Log(randomNumbers);
@@ -51,7 +56,7 @@ public class PenroseGenerator : MonoBehaviour
 
         // Debug.Log(string.Join(", ", icos));
 
-        int p = 1; // number of parallel planes
+        int p = 2; // number of parallel planes
         Plane[,] planes = new Plane[6, p];
 
         for (int i = 0; i < 6; i++) {
@@ -87,21 +92,22 @@ public class PenroseGenerator : MonoBehaviour
                                     for (int ind = 0; ind < 6; ind++) {
                                         for (int ind2 = 0; ind2 < 8; ind2++) {
                                             // magic formula which I don't understand :)
-                                            starter_k[ind, ind2] = Mathf.CeilToInt(Vector3.Dot(icos[ind], intersection) + randomNumbers[ind]);
+                                            starter_k[ind, ind2] = Mathf.CeilToInt(Vector3.Dot(icos[ind], intersection) - randomNumbers[ind]);
                                         }
                                     }
 
                                     for (int indy = 0; indy < 8; indy++) {
                                         // replace the 3 plane values with their offset indices
-                                        starter_k[h,indy] = k + (indy % 2);
-                                        starter_k[i,indy] = l + (indy % 4)/2;
-                                        starter_k[j,indy] = m + (indy % 8)/4;
+                                        starter_k[h,indy] = k + (indy & 1);
+                                        starter_k[i,indy] = l + (indy >> 1 & 1);
+                                        starter_k[j,indy] = m + (indy >> 2 & 1);
                                     }
 
                                     Vector3[] position = new Vector3[8];
 
-                                    for (int index = 0; index < 6; index++) {
-                                        for (int indexy = 0; indexy < 8; indexy++) {
+                                    
+                                    for (int indexy = 0; indexy < 8; indexy++) {
+                                        for (int index = 0; index < 6; index++) {
                                             position[indexy] += starter_k[index, indexy] * icos[index];
                                         }
                                     }
@@ -118,11 +124,13 @@ public class PenroseGenerator : MonoBehaviour
         }
 
         bool displayPlanes = false;
-        bool displayPoints = false;
+        bool displayPoints = true;
+        int numTiles = tiles.Count;
         // display all the points
         if (displayPoints) {
-            foreach (Vector3 point in points) {
-                Instantiate(spherePrefab, point, Quaternion.identity);
+            for (int i = 0; i < numTiles; i++) {
+                foreach (Vector3 vertex in tiles[i].vertices)
+                Instantiate(spherePrefab, vertex, Quaternion.identity);
             }
         }
         GameObject prefabInstance = GameObject.Find("origin");
@@ -139,21 +147,90 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
-        int tileInd = 1;
-        for(int i = 0; i < 8; i++) {
-            Instantiate(spherePrefab, tiles[tileInd].vertices[i], Quaternion.identity);
-            Debug.Log(tiles[tileInd].vertices[i]);
+        // int tileInd = 1;
+        // for(int i = 0; i < 8; i++) {
+        //     Instantiate(spherePrefab, tiles[tileInd].vertices[i], Quaternion.identity);
+        //     Debug.Log(tiles[tileInd].vertices[i]);
+        // }
+        for (int i = 0; i < numTiles; i++) {
+            renderRhomb(tiles[i].vertices);
         }
 
-
-        prefabInstance.GetComponent<MeshRenderer>().enabled = false;
+        
+        // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
 
     }
 
     // Update is called once per frame
     void Update()
     {
+        Camera playerCamera = GameObject.Find("PlayerCamera").GetComponent<Camera>();
+
+        Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, float.MaxValue))
+        {
+            if (hit.triangleIndex != -1) {
+                Mesh mesh = hit.collider.GetComponent<MeshFilter>().mesh;
+                int triangleIndex = hit.triangleIndex;
+
+                GetComponent<MeshFilter>().mesh = mesh;
+                // Update the mesh with the new colors
+
+                Material material = new Material(Shader.Find("Unlit/Color"));
+                material.color = Color.red;
+                mesh.RecalculateNormals();
+        MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
+                meshRenderer.material = material;
+            }
+        }
+    }
+
+    void renderRhomb(Vector3[] vertices) {
+        // MeshFilter meshFilter = GetComponent<MeshFilter>();
+        Mesh mesh = new Mesh();
+        // meshFilter.mesh = mesh;
+        mesh.vertices = vertices;
+
+        int[] triangles = new int[]
+        {
+            0, 2, 1, // 0, 1, 2, 3
+            1, 2, 3,
+
+            0, 1, 5, // 0, 1, 4, 5
+            0, 5, 4,
+
+            0, 4, 6, // 0, 2, 4, 6
+            0, 6, 2,
+
+            6, 5, 7, // 4, 5, 6, 7
+            5, 6, 4,
+
+            1, 3, 7, // 1, 3, 5, 7
+            1, 7, 5,
+            
+            2, 6, 3, // 2, 3, 6, 7
+            3, 6, 7
+        };
+
+        mesh.triangles = triangles;
+
+        mesh.RecalculateNormals();
+        // MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
         
+
+        GameObject terrainMesh = new GameObject();
+        MeshFilter meshFilter = terrainMesh.AddComponent<MeshFilter>();
+        MeshRenderer meshRenderer = terrainMesh.AddComponent<MeshRenderer>();
+
+        meshCollider.sharedMesh = mesh;
+        meshRenderer.material = material;
+
+        // Set the mesh and material properties
+        meshFilter.mesh = mesh;
+        meshRenderer.material = material;
+
+        // Set the parent of the mesh object to the current object
+        terrainMesh.transform.SetParent(transform);
     }
 
     void renderPlane(Plane plane) {
