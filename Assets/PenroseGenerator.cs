@@ -58,13 +58,12 @@ public class PenroseGenerator : MonoBehaviour
 
         // Debug.Log(string.Join(", ", icos));
 
-        int p = 4; // number of parallel planes
+        int p = 8; // number of parallel planes
         Plane[,] planes = new Plane[6, p+1];
 
         for (int i = 0; i < 6; i++) {
             for (int j = 0; j < p; j++) {
-                // ANY INTEGER OFFSET IS BREAKING EVERYTHING...
-                planes[i, j] = new Plane(icos[i], randomNumbers[i] + j - 2);
+                planes[i, j] = new Plane(icos[i], randomNumbers[i] + j - p/2);
             }
         }
 
@@ -91,15 +90,6 @@ public class PenroseGenerator : MonoBehaviour
 
                                     // check if intersection is within chunk
                                     bool outside = false;
-                                    // for (int ind = 0; ind < 6; ind++) {
-                                    //     if (Vector3.Dot(planes[ind, 0].normal, intersection - planes[ind, 0].normal * planes[ind, 0].distance) < 0
-                                    //         || Vector3.Dot(planes[ind, p - 1].normal, intersection - planes[ind, p - 1].normal * planes[ind, p - 1].distance) >= 0) {
-                                    //             outside = true;
-                                    //             break;
-                                    //     }
-                                    // }
-
-                                    
 
                                     points.Add(intersection);
                                     
@@ -116,7 +106,6 @@ public class PenroseGenerator : MonoBehaviour
 
                                     for (int indy = 0; indy < 8; indy++) {
                                         // replace the 3 intersecting plane values with their offset indices
-                                        // PRETTY SURE IT SHOULDN'T BE KLM here, it should be 
                                         starter_k[h,indy] = k-(planes.GetLength(1)/2)+(indy & 1);
                                         starter_k[i,indy] = l-(planes.GetLength(1)/2)+(indy >> 1 & 1);
                                         starter_k[j,indy] = m-(planes.GetLength(1)/2)+(indy >> 2 & 1);
@@ -205,6 +194,10 @@ public class PenroseGenerator : MonoBehaviour
                 meshRenderer.material = material;
             }
         }
+    }
+
+    void genChunk(int[] chunk) {
+        
     }
 
     void renderRhomb(Vector3[] vertices, bool culled) {

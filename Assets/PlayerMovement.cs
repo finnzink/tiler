@@ -13,6 +13,14 @@ public class PlayerMovement : MonoBehaviour
     {
         Cursor.lockState = CursorLockMode.Locked;
     }
+
+    void OnGUI()
+    {
+        Vector3 playerPosition = playerBody.position;
+        GUI.backgroundColor = Color.black;
+        GUI.Box(new Rect(0, 0, 300, 20), "Player position: " + playerPosition.ToString());
+    }
+
     void Update()
     {
         float moveX = Input.GetAxis("Horizontal");
