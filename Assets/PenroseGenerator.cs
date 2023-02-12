@@ -26,12 +26,14 @@ public class PenroseGenerator : MonoBehaviour
     public GameObject loadedChunk;
     public Mesh mesh;
     public float[] randomNumbers = new float[6];
-    public bool debugPlanes = false;
+    public bool debugPlanes;
+    public bool showRhombs;
 
     // Start is called before the first frame update
     void Start()
     {
         debugPlanes = false;
+        showRhombs = true;
         loadedChunk = new GameObject();
         mesh = new Mesh();
         // meshFilter = GetComponent<MeshFilter>();
@@ -64,9 +66,9 @@ public class PenroseGenerator : MonoBehaviour
         // Debug.Log(string.Join(", ", icos));
         // int[] startChunk = new int[] { 0, 0, 0, 0, 0, 0 };
         // genChunk(startChunk);
-        Vector3 secChunk = new Vector3(0, 0, 0);
-        genChunk(secChunk);
-        Vector3 secChunk2 = new Vector3(10, 0, 10);
+        // Vector3 secChunk = new Vector3(0, 0, 0);
+        // genChunk(secChunk);
+        Vector3 secChunk2 = new Vector3(0, 0, 0);
         genChunk(secChunk2);
         
         // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
@@ -126,7 +128,7 @@ public class PenroseGenerator : MonoBehaviour
                 // Vector3 exactOffset = offsetPoint + icos[i] * (j - (p/2) + randomNumbers[i]);
                 // planeOffsets[i,j] = exactOffset;
 
-                planes[i, j] = new Plane(-icos[i], j - (p/2) + randomNumbers[i] + (int)(Vector3.Dot(testPoint, icos[i])));
+                planes[i, j] = new Plane(icos[i], j - (p/2) + randomNumbers[i] + (int)(Vector3.Dot(testPoint, icos[i])));
                 // Debug.Log("OFFSET: " + (randomNumbers[i] + j - (p/2) + (chunk[i] * p)).ToString());
             }
         }
@@ -150,7 +152,7 @@ public class PenroseGenerator : MonoBehaviour
                                     var det = Vector3.Dot( Vector3.Cross( planes[j, m].normal, planes[i, l].normal ), planes[h, k].normal );
                                     
                                     Vector3 intersection = 
-                                        ( ( planes[h, k].distance * Vector3.Cross( planes[i, l].normal, planes[j, m].normal ) ) +
+                                        -1*( ( planes[h, k].distance * Vector3.Cross( planes[i, l].normal, planes[j, m].normal ) ) +
                                         ( planes[i, l].distance * Vector3.Cross( planes[j, m].normal, planes[h, k].normal ) ) +
                                         ( planes[j, m].distance * Vector3.Cross( planes[h, k].normal, planes[i, l].normal ) ) ) / det;
 
@@ -239,7 +241,9 @@ public class PenroseGenerator : MonoBehaviour
                 || tiles[i].vertices[0][2] < centroid[2] - 4 || tiles[i].vertices[0][2] > centroid[2] + 4) {
                 continue;
             }
-            renderRhomb(tiles[i].vertices, tiles[i].material);
+            if (showRhombs) {
+                renderRhomb(tiles[i].vertices, tiles[i].material);
+            }
         }
 
         // display the planes
@@ -332,7 +336,8 @@ public class PenroseGenerator : MonoBehaviour
         // Set the parent of the mesh object to the current object
         terrainMesh.transform.SetParent(loadedChunk.transform);
         
-        for (int i = 0; i < vertices.Length; i++) {
+        for (int i = 0; i < 1; i++) {
+        // for (int i = 0; i < vertices.Length; i++) {
             Instantiate(spherePrefab, vertices[i], Quaternion.identity);
         }
     }
