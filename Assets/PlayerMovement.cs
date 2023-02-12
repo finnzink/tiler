@@ -13,7 +13,8 @@ public class PlayerMovement : MonoBehaviour
     public float upDownSpeed = 2f; // adjust as desired
     public Transform playerBody;
     float rotX = 0f;
-    public int[] currChunk = new int[6];
+    public Vector3 currChunk = new Vector3(0, 0, 0);
+    public float[] basisOffset = new float[6];
 
     void Start()
     {
@@ -33,7 +34,12 @@ public class PlayerMovement : MonoBehaviour
     {
         Vector3 playerPosition = playerBody.position;
         GUI.backgroundColor = Color.black;
-        GUI.Box(new Rect(0, 0, 300, 50), "Position: " + playerPosition.ToString() + "\nChunk: " + string.Join(",", currChunk));
+        string[] formattedStrings = new string[basisOffset.Length];
+        for (int i = 0; i < basisOffset.Length; i++)
+        {
+            formattedStrings[i] = string.Format("{0:0.##}", basisOffset[i]);
+        }
+        GUI.Box(new Rect(0, 0, 300, 75), "Position: " + playerPosition.ToString() + "\nBasis: " + string.Join(",", formattedStrings) + "\nChunk: " + string.Join(",", currChunk));
     }
 
     void Update()
@@ -71,11 +77,19 @@ public class PlayerMovement : MonoBehaviour
         transform.localEulerAngles = new Vector3(rotX, transform.localEulerAngles.y, 0);
         transform.Rotate(Vector3.up * mouseX);
 
-        int[] newChunk = new int[6];
+        Vector3 newChunk = new Vector3(0, 0, 0);
         bool chunkChanged = false;
 
         for (int i = 0; i < 6; i++) {
-            newChunk[i] = (int)(Vector3.Dot(icos[i], playerBody.position) / 8);
+            float dotProd = Vector3.Dot(icos[i], playerBody.position);
+            basisOffset[i] = dotProd; 
+        }
+
+        for (int i = 0; i < 3; i++) {
+            // float dotProd = Vector3.Dot(icos[i], playerBody.position);
+            // basisOffset[i] = dotProd;
+            // newChunk[i] = (int)((dotProd - (Mathf.Sign(dotProd) * 4))/8);
+            newChunk[i] = (int)(playerBody.position[i]/8);
             if (newChunk[i] != currChunk[i]) {
                 chunkChanged = true;
             }
@@ -83,6 +97,7 @@ public class PlayerMovement : MonoBehaviour
         if (chunkChanged) {
             currChunk = newChunk;
             script1 = terrainGenator.GetComponent<PenroseGenerator>();
+            
             // script1.genChunk(newChunk);
         }
     }

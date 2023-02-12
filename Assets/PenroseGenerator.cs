@@ -23,12 +23,16 @@ public class PenroseGenerator : MonoBehaviour
     public Material material;
     public MeshFilter meshFilter;
     public MeshCollider meshCollider;
+    public GameObject loadedChunk;
     public Mesh mesh;
     public float[] randomNumbers = new float[6];
+    public bool debugPlanes = false;
 
     // Start is called before the first frame update
     void Start()
     {
+        debugPlanes = false;
+        loadedChunk = new GameObject();
         mesh = new Mesh();
         // meshFilter = GetComponent<MeshFilter>();
         meshCollider = GetComponent<MeshCollider>();
@@ -60,36 +64,10 @@ public class PenroseGenerator : MonoBehaviour
         // Debug.Log(string.Join(", ", icos));
         // int[] startChunk = new int[] { 0, 0, 0, 0, 0, 0 };
         // genChunk(startChunk);
-        int[] secChunk = new int[] { 1, 0, 0, 0, 0, 0 };
+        Vector3 secChunk = new Vector3(0, 0, 0);
         genChunk(secChunk);
-
-        // bool displayPlanes = false;
-        // bool displayPoints = true;
-        // int numTiles = tiles.Count;
-        // // display all the points
-        // if (displayPoints) {
-        //     for (int i = 0; i < numTiles; i++) {
-        //         foreach (Vector3 vertex in tiles[i].vertices)
-        //         Instantiate(spherePrefab, vertex, Quaternion.identity);
-        //     }
-        // }
-        // GameObject prefabInstance = GameObject.Find("origin");
-
-        // display the planes
-        // if (displayPlanes) {
-        //     for (int i = 0; i < planes.GetLength(0); i++)
-        //     {
-        //         // for (int j = 0; j < planes.GetLength(1); j++)
-        //         // {
-        //             renderPlane(planes[i, 0].flipped, true);
-        //             renderPlane(planes[i, 0], true);
-
-        //             renderPlane(planes[i, p-1].flipped, false);
-        //             renderPlane(planes[i, p-1], false);
-        //         // }
-        //     }
-        // }
-
+        Vector3 secChunk2 = new Vector3(10, 0, 10);
+        genChunk(secChunk2);
         
         // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
 
@@ -113,13 +91,17 @@ public class PenroseGenerator : MonoBehaviour
                 Material material = new Material(Shader.Find("Unlit/Color"));
                 material.color = Color.red;
                 mesh.RecalculateNormals();
-        MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
+                MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
                 meshRenderer.material = material;
             }
         }
     }
 
-    public void genChunk(int[] chunk) {
+    public void genChunk(Vector3 chunk) {
+        // GameObject toDestroy = loadedChunk; 
+        // loadedChunk = new GameObject();
+        // Destroy(toDestroy);
+        
         Debug.Log("GENERATING NEW CHUNK" + string.Join(",", chunk));
         Debug.Log("RANDS: " + string.Join(",", randomNumbers));
         int yFunk = 0;
@@ -127,22 +109,24 @@ public class PenroseGenerator : MonoBehaviour
         Plane[,] planes = new Plane[6, p];
 
         // CALCULATE NEW OFFSET, which is in the center of the new chunk
-        Vector3 offsetPoint = new Vector3();
-        for (int i = 0; i < 6; i++) {
-            offsetPoint += chunk[i] * p * icos[i];
-        }
+        // for (int i = 0; i < 3; i++) {
+        //     offsetPoint += chunk[i] * p * icos[i];
+        // }
+        // Vector3 offsetPoint = new Vector3((chunk[0] * 8) + Mathf.Sign(chunk[0] * 4), (chunk[1]*8) + Mathf.Sign(chunk[1] * 4), (chunk[2]*8) + Mathf.Sign(chunk[2] * 4));
+        Vector3 testPoint = chunk;
+        // GameObject instantiatedSphere = Instantiate(spherePrefab, offsetPoint, Quaternion.identity);
+        // instantiatedSphere.transform.SetParent(loadedChunk.transform);
         // float dist = Vector3.Distance(offsetPoint, Vector3.zero);
 
         Vector3[,] planeOffsets = new Vector3[6, p];
 
         for (int i = 0; i < 6; i++) {
+            Debug.Log((int)(Vector3.Dot(testPoint, icos[i])));
             for (int j = 0; j < p; j++) {
-                Vector3 exactOffset = offsetPoint + icos[i] * (j - (p/2) + randomNumbers[i]);
-                planeOffsets[i,j] = exactOffset;
-                Instantiate(spherePrefab, exactOffset, Quaternion.identity);
+                // Vector3 exactOffset = offsetPoint + icos[i] * (j - (p/2) + randomNumbers[i]);
+                // planeOffsets[i,j] = exactOffset;
 
-
-                planes[i, j] = new Plane(icos[i], j - (p/2) + randomNumbers[i] + (chunk[i] * p));
+                planes[i, j] = new Plane(-icos[i], j - (p/2) + randomNumbers[i] + (int)(Vector3.Dot(testPoint, icos[i])));
                 // Debug.Log("OFFSET: " + (randomNumbers[i] + j - (p/2) + (chunk[i] * p)).ToString());
             }
         }
@@ -151,6 +135,8 @@ public class PenroseGenerator : MonoBehaviour
         List<Vector3> points = new List<Vector3>();
 
         List<Tile> tiles = new List<Tile>();
+
+        Vector3 centroid = new Vector3(0,0,0);
 
         // first three loops are for which 3 intersecting bases
         for (int h = 0; h < 6; h++) {
@@ -164,9 +150,13 @@ public class PenroseGenerator : MonoBehaviour
                                     var det = Vector3.Dot( Vector3.Cross( planes[j, m].normal, planes[i, l].normal ), planes[h, k].normal );
                                     
                                     Vector3 intersection = 
-                                        ( -( planes[h, k].distance * Vector3.Cross( planes[i, l].normal, planes[j, m].normal ) ) -
-                                        ( planes[i, l].distance * Vector3.Cross( planes[j, m].normal, planes[h, k].normal ) ) -
+                                        ( ( planes[h, k].distance * Vector3.Cross( planes[i, l].normal, planes[j, m].normal ) ) +
+                                        ( planes[i, l].distance * Vector3.Cross( planes[j, m].normal, planes[h, k].normal ) ) +
                                         ( planes[j, m].distance * Vector3.Cross( planes[h, k].normal, planes[i, l].normal ) ) ) / det;
+
+                                    if (debugPlanes) {
+                                    Instantiate(spherePrefab, intersection, Quaternion.identity);
+                                    }
 
                                     // check if intersection is within chunk
                                     bool outside = false;
@@ -179,10 +169,9 @@ public class PenroseGenerator : MonoBehaviour
                                             // magic formula which I don't understand :)
                                             starter_k[ind, ind2] = Mathf.CeilToInt(Vector3.Dot(icos[ind], intersection) - randomNumbers[ind]);
                                         }
-                                        if (starter_k[ind, 0] >= planes.GetLength(1)/2 || starter_k[ind, 0] < -1* planes.GetLength(1)/2) { outside = true; }
+                                        // if (starter_k[ind, 0] >= planes.GetLength(1)/2 || starter_k[ind, 0] < -1* planes.GetLength(1)/2) { outside = true; }
                                     }
 
-                                    if (outside) { break; }
 
                                     for (int indy = 0; indy < 8; indy++) {
                                         // replace the 3 intersecting plane values with their offset indices
@@ -200,6 +189,15 @@ public class PenroseGenerator : MonoBehaviour
                                         }
                                     }
 
+                                    if (k == 4 && l == 4 && m == 4) {
+                                        centroid = position[0];
+                                    }
+
+                                    // int filter = 8;
+                                    // if (position[0][0] >= chunk[0] + 4 || position[0][0] < chunk[0] - 4
+                                    //     || position[0][1] >= chunk[1] + 4 || position[0][1] < chunk[1] - 4
+                                    //     || position[0][2] >= chunk[2] + 4 || position[0][2] < chunk[2] - 4) { break; }
+
                                     // check if part of terrain
                                     // if (Mathf.Abs(position[0].y - yFunk) > .5) {
                                     //     break;
@@ -211,7 +209,7 @@ public class PenroseGenerator : MonoBehaviour
                                     material.color = Color.red;
                                     }
                                     else {
-                                        material.color = new Color(1 - ((chunk[0] + chunk[1]) / 5), 1-((chunk[2] + chunk[3]) / 5), 1- ((chunk[4] + chunk[5]) / 5), 1f);
+                                        material.color = new Color(1 - ((chunk[0] ) / 20), 1-((chunk[1]) / 20), 1- ((chunk[2]) / 20), 1f);
                                     }
                                     Tile curr = new Tile(intersection, starter_k, position, material);
                                     tiles.Add(curr);
@@ -223,29 +221,46 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
-        bool displayPoints = false;
+        bool displayPoints = true;
         int numTiles = tiles.Count;
         // display all the points
         if (displayPoints) {
             for (int i = 0; i < numTiles; i++) {
-                foreach (Vector3 vertex in tiles[i].vertices)
-                Instantiate(spherePrefab, vertex, Quaternion.identity);
+                // foreach (Vector3 vertex in tiles[i].vertices)
+                // Instantiate(spherePrefab, vertex, Quaternion.identity);
             }
         }
 
+
+        
         for (int i = 0; i < tiles.Count; i++) {
-            // renderRhomb(tiles[i].vertices, tiles[i].material);
+            if (tiles[i].vertices[0][0] < centroid[0] - 4 || tiles[i].vertices[0][0] > centroid[0] + 4
+                || tiles[i].vertices[0][1] < centroid[1] - 4 || tiles[i].vertices[0][1] > centroid[1] + 4
+                || tiles[i].vertices[0][2] < centroid[2] - 4 || tiles[i].vertices[0][2] > centroid[2] + 4) {
+                continue;
+            }
+            renderRhomb(tiles[i].vertices, tiles[i].material);
         }
 
         // display the planes
-        if (true) {
+        if (debugPlanes) {
+            Debug.Log(debugPlanes);
             for (int i = 0; i < 6; i++)
             {
-                    renderPlane(planes[i, 0].flipped, true, planeOffsets[i, 0]);
-                    renderPlane(planes[i, 0], true, planeOffsets[i, 0]);
-
-                    renderPlane(planes[i, p-1].flipped, false, planeOffsets[i, p-1]);
-                    renderPlane(planes[i, p-1], false, planeOffsets[i, p-1]);
+                for (int j = 0; j < planes.GetLength(1); j++){
+                    if (chunk[0] == 0 && chunk[1] == 0 && chunk[2] == 0) {
+                        // Debug.Log("plane0");
+                        renderPlane(planes[i, j].flipped, true, planeOffsets[i, j]);
+                        renderPlane(planes[i, j], true, planeOffsets[i, j]);
+                    }
+                    else {
+                        // Debug.Log("plane1");
+                        renderPlane(planes[i, j].flipped, false, planeOffsets[i, j]);
+                        renderPlane(planes[i, j], false, planeOffsets[i, j]);
+                    }
+                    // renderPlane(planes[i, p-1].flipped, false, planeOffsets[i, p-1]);
+                    // renderPlane(planes[i, p-1], false, planeOffsets[i, p-1]);
+                }
             }
         }
     }
@@ -278,23 +293,23 @@ public class PenroseGenerator : MonoBehaviour
 
             // DEBUG
 
-            2, 0, 1, // 0, 1, 2, 3
-            2, 1, 3,
+            // 2, 0, 1, // 0, 1, 2, 3
+            // 2, 1, 3,
 
-            1, 0, 5, // 0, 1, 4, 5
-            5, 0, 4,
+            // 1, 0, 5, // 0, 1, 4, 5
+            // 5, 0, 4,
 
-            4, 0, 6, // 0, 2, 4, 6
-            6, 0, 2,
+            // 4, 0, 6, // 0, 2, 4, 6
+            // 6, 0, 2,
 
-            5, 6, 7, // 4, 5, 6, 7
-            6, 5, 4,
+            // 5, 6, 7, // 4, 5, 6, 7
+            // 6, 5, 4,
 
-            3, 1, 7, // 1, 3, 5, 7
-            7, 1, 5,
+            // 3, 1, 7, // 1, 3, 5, 7
+            // 7, 1, 5,
             
-            6, 2, 3, // 2, 3, 6, 7
-            6, 3, 7
+            // 6, 2, 3, // 2, 3, 6, 7
+            // 6, 3, 7
         };
 
         mesh.triangles = triangles;
@@ -315,7 +330,11 @@ public class PenroseGenerator : MonoBehaviour
         meshRenderer.material = material;
 
         // Set the parent of the mesh object to the current object
-        terrainMesh.transform.SetParent(transform);
+        terrainMesh.transform.SetParent(loadedChunk.transform);
+        
+        for (int i = 0; i < vertices.Length; i++) {
+            Instantiate(spherePrefab, vertices[i], Quaternion.identity);
+        }
     }
 
     void renderPlane(Plane plane, bool side, Vector3 position) {
@@ -347,12 +366,11 @@ public class PenroseGenerator : MonoBehaviour
         mesh.RecalculateNormals();
         meshFilter.mesh = mesh;
 
+        // Position the square GameObject by setting its transform.position to the Plane's normal vector multiplied by the Plane.distance
+        square.transform.position = plane.normal * plane.distance;
 
         // Rotate the square GameObject to align with the Plane's normal vector
         square.transform.rotation = Quaternion.FromToRotation(Vector3.up, plane.normal);
-
-        // Position the square GameObject by setting its transform.position to the Plane's normal vector multiplied by the Plane.distance
-        square.transform.position = position;
 
         
 
@@ -362,6 +380,8 @@ public class PenroseGenerator : MonoBehaviour
         if (side) {material.color = Color.green;}
         else {material.color = Color.blue;}
         meshRenderer.material = material;
+
+        square.transform.SetParent(loadedChunk.transform);
     }
 
 }
