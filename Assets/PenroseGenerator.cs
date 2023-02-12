@@ -6,13 +6,13 @@ struct Tile {
     public Vector3 point;
     public Vector3[] vertices;
     public int[,] k;
-    public bool culled;
+    public Material material;
 
-    public Tile(Vector3 point, int[,] k, Vector3[] vertices, bool culled) {
+    public Tile(Vector3 point, int[,] k, Vector3[] vertices, Material material) {
         this.point = point;
         this.k = k;
         this.vertices = vertices;
-        this.culled = culled;
+        this.material = material;
     }
 }
 
@@ -24,6 +24,7 @@ public class PenroseGenerator : MonoBehaviour
     public MeshFilter meshFilter;
     public MeshCollider meshCollider;
     public Mesh mesh;
+    public float[] randomNumbers = new float[6];
 
     // Start is called before the first frame update
     void Start()
@@ -35,7 +36,7 @@ public class PenroseGenerator : MonoBehaviour
         // generate offsets
         int seed = (int)System.DateTime.Now.Ticks;
         Random.InitState(seed);
-        float[] randomNumbers = new float[6];
+        
 
         for (int i = 0; i < randomNumbers.Length; i++) {
             randomNumbers[i] = Random.Range(0f, 1f);
@@ -57,13 +58,92 @@ public class PenroseGenerator : MonoBehaviour
         icos.Add(new Vector3(0.0f, 0.0f, 1.0f));
 
         // Debug.Log(string.Join(", ", icos));
+        // int[] startChunk = new int[] { 0, 0, 0, 0, 0, 0 };
+        // genChunk(startChunk);
+        int[] secChunk = new int[] { 1, 0, 0, 0, 0, 0 };
+        genChunk(secChunk);
 
+        // bool displayPlanes = false;
+        // bool displayPoints = true;
+        // int numTiles = tiles.Count;
+        // // display all the points
+        // if (displayPoints) {
+        //     for (int i = 0; i < numTiles; i++) {
+        //         foreach (Vector3 vertex in tiles[i].vertices)
+        //         Instantiate(spherePrefab, vertex, Quaternion.identity);
+        //     }
+        // }
+        // GameObject prefabInstance = GameObject.Find("origin");
+
+        // display the planes
+        // if (displayPlanes) {
+        //     for (int i = 0; i < planes.GetLength(0); i++)
+        //     {
+        //         // for (int j = 0; j < planes.GetLength(1); j++)
+        //         // {
+        //             renderPlane(planes[i, 0].flipped, true);
+        //             renderPlane(planes[i, 0], true);
+
+        //             renderPlane(planes[i, p-1].flipped, false);
+        //             renderPlane(planes[i, p-1], false);
+        //         // }
+        //     }
+        // }
+
+        
+        // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
+
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        Camera playerCamera = GameObject.Find("PlayerCamera").GetComponent<Camera>();
+
+        Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, float.MaxValue))
+        {
+            if (hit.triangleIndex != -1) {
+                Mesh mesh = hit.collider.GetComponent<MeshFilter>().mesh;
+                int triangleIndex = hit.triangleIndex;
+
+                GetComponent<MeshFilter>().mesh = mesh;
+                // Update the mesh with the new colors
+
+                Material material = new Material(Shader.Find("Unlit/Color"));
+                material.color = Color.red;
+                mesh.RecalculateNormals();
+        MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
+                meshRenderer.material = material;
+            }
+        }
+    }
+
+    public void genChunk(int[] chunk) {
+        Debug.Log("GENERATING NEW CHUNK" + string.Join(",", chunk));
+        Debug.Log("RANDS: " + string.Join(",", randomNumbers));
+        int yFunk = 0;
         int p = 8; // number of parallel planes
-        Plane[,] planes = new Plane[6, p+1];
+        Plane[,] planes = new Plane[6, p];
+
+        // CALCULATE NEW OFFSET, which is in the center of the new chunk
+        Vector3 offsetPoint = new Vector3();
+        for (int i = 0; i < 6; i++) {
+            offsetPoint += chunk[i] * p * icos[i];
+        }
+        // float dist = Vector3.Distance(offsetPoint, Vector3.zero);
+
+        Vector3[,] planeOffsets = new Vector3[6, p];
 
         for (int i = 0; i < 6; i++) {
             for (int j = 0; j < p; j++) {
-                planes[i, j] = new Plane(icos[i], randomNumbers[i] + j - p/2);
+                Vector3 exactOffset = offsetPoint + icos[i] * (j - (p/2) + randomNumbers[i]);
+                planeOffsets[i,j] = exactOffset;
+                Instantiate(spherePrefab, exactOffset, Quaternion.identity);
+
+
+                planes[i, j] = new Plane(icos[i], j - (p/2) + randomNumbers[i] + (chunk[i] * p));
+                // Debug.Log("OFFSET: " + (randomNumbers[i] + j - (p/2) + (chunk[i] * p)).ToString());
             }
         }
 
@@ -120,8 +200,20 @@ public class PenroseGenerator : MonoBehaviour
                                         }
                                     }
 
+                                    // check if part of terrain
+                                    // if (Mathf.Abs(position[0].y - yFunk) > .5) {
+                                    //     break;
+                                    // }
+                                    // Debug.Log("hit");
                                     // Make the Tile object
-                                    Tile curr = new Tile(intersection, starter_k, position, outside);
+                                    Material material = new Material(Shader.Find("Standard"));
+                                    if (outside) {
+                                    material.color = Color.red;
+                                    }
+                                    else {
+                                        material.color = new Color(1 - ((chunk[0] + chunk[1]) / 5), 1-((chunk[2] + chunk[3]) / 5), 1- ((chunk[4] + chunk[5]) / 5), 1f);
+                                    }
+                                    Tile curr = new Tile(intersection, starter_k, position, material);
                                     tiles.Add(curr);
                                 }   
                             }
@@ -131,8 +223,7 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
-        bool displayPlanes = false;
-        bool displayPoints = true;
+        bool displayPoints = false;
         int numTiles = tiles.Count;
         // display all the points
         if (displayPoints) {
@@ -141,66 +232,25 @@ public class PenroseGenerator : MonoBehaviour
                 Instantiate(spherePrefab, vertex, Quaternion.identity);
             }
         }
-        GameObject prefabInstance = GameObject.Find("origin");
+
+        for (int i = 0; i < tiles.Count; i++) {
+            // renderRhomb(tiles[i].vertices, tiles[i].material);
+        }
 
         // display the planes
-        if (displayPlanes) {
-            for (int i = 0; i < planes.GetLength(0); i++)
+        if (true) {
+            for (int i = 0; i < 6; i++)
             {
-                // for (int j = 0; j < planes.GetLength(1); j++)
-                // {
-                    renderPlane(planes[i, 0].flipped, true);
-                    renderPlane(planes[i, 0], true);
+                    renderPlane(planes[i, 0].flipped, true, planeOffsets[i, 0]);
+                    renderPlane(planes[i, 0], true, planeOffsets[i, 0]);
 
-                    renderPlane(planes[i, p-1].flipped, false);
-                    renderPlane(planes[i, p-1], false);
-                // }
-            }
-        }
-
-        // int tileInd = 1;
-        // for(int i = 0; i < 8; i++) {
-        //     Instantiate(spherePrefab, tiles[tileInd].vertices[i], Quaternion.identity);
-        //     Debug.Log(tiles[tileInd].vertices[i]);
-        // }
-        for (int i = 0; i < numTiles; i++) {
-            renderRhomb(tiles[i].vertices, tiles[i].culled);
-        }
-
-        
-        // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
-
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        Camera playerCamera = GameObject.Find("PlayerCamera").GetComponent<Camera>();
-
-        Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
-        if (Physics.Raycast(ray, out RaycastHit hit, float.MaxValue))
-        {
-            if (hit.triangleIndex != -1) {
-                Mesh mesh = hit.collider.GetComponent<MeshFilter>().mesh;
-                int triangleIndex = hit.triangleIndex;
-
-                GetComponent<MeshFilter>().mesh = mesh;
-                // Update the mesh with the new colors
-
-                Material material = new Material(Shader.Find("Unlit/Color"));
-                material.color = Color.red;
-                mesh.RecalculateNormals();
-        MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
-                meshRenderer.material = material;
+                    renderPlane(planes[i, p-1].flipped, false, planeOffsets[i, p-1]);
+                    renderPlane(planes[i, p-1], false, planeOffsets[i, p-1]);
             }
         }
     }
 
-    void genChunk(int[] chunk) {
-        
-    }
-
-    void renderRhomb(Vector3[] vertices, bool culled) {
+    void renderRhomb(Vector3[] vertices, Material material) {
         // MeshFilter meshFilter = GetComponent<MeshFilter>();
         Mesh mesh = new Mesh();
         // meshFilter.mesh = mesh;
@@ -257,12 +307,6 @@ public class PenroseGenerator : MonoBehaviour
         MeshFilter meshFilter = terrainMesh.AddComponent<MeshFilter>();
         MeshRenderer meshRenderer = terrainMesh.AddComponent<MeshRenderer>();
 
-
-        Material material = new Material(Shader.Find("Standard"));
-        if (culled)
-         {material.color = Color.red;}
-        else { material.color = Color.white; }
-
         meshCollider.sharedMesh = mesh;
         meshRenderer.material = material;
 
@@ -274,7 +318,7 @@ public class PenroseGenerator : MonoBehaviour
         terrainMesh.transform.SetParent(transform);
     }
 
-    void renderPlane(Plane plane, bool side) {
+    void renderPlane(Plane plane, bool side, Vector3 position) {
         float length = 10;
         GameObject square = new GameObject("Square");
         MeshFilter meshFilter = square.AddComponent<MeshFilter>();
@@ -308,7 +352,7 @@ public class PenroseGenerator : MonoBehaviour
         square.transform.rotation = Quaternion.FromToRotation(Vector3.up, plane.normal);
 
         // Position the square GameObject by setting its transform.position to the Plane's normal vector multiplied by the Plane.distance
-        square.transform.position = plane.normal * plane.distance;
+        square.transform.position = position;
 
         
 
