@@ -66,9 +66,9 @@ public class PenroseGenerator : MonoBehaviour
         // Debug.Log(string.Join(", ", icos));
         // int[] startChunk = new int[] { 0, 0, 0, 0, 0, 0 };
         // genChunk(startChunk);
-        // Vector3 secChunk = new Vector3(0, 0, 0);
-        // genChunk(secChunk);
-        Vector3 secChunk2 = new Vector3(0, 0, 0);
+        Vector3 secChunk = new Vector3(0, 0, 0);
+        genChunk(secChunk);
+        Vector3 secChunk2 = new Vector3(3, 0, 3);
         genChunk(secChunk2);
         
         // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
@@ -120,10 +120,10 @@ public class PenroseGenerator : MonoBehaviour
         // instantiatedSphere.transform.SetParent(loadedChunk.transform);
         // float dist = Vector3.Distance(offsetPoint, Vector3.zero);
 
-        Vector3[,] planeOffsets = new Vector3[6, p];
+        int[] planeOffsets = new int[6];
 
         for (int i = 0; i < 6; i++) {
-            Debug.Log((int)(Vector3.Dot(testPoint, icos[i])));
+            planeOffsets[i] = (int)(Vector3.Dot(testPoint, icos[i]));
             for (int j = 0; j < p; j++) {
                 // Vector3 exactOffset = offsetPoint + icos[i] * (j - (p/2) + randomNumbers[i]);
                 // planeOffsets[i,j] = exactOffset;
@@ -146,9 +146,13 @@ public class PenroseGenerator : MonoBehaviour
                 for (int j = i + 1; j < 6; j++) {
                     // last three are for which basis plane for each given basis
                     // if (h != i && i != j && j != h) {
-                        for (int k = 0; k < planes.GetLength(1) - 1; k++) {
-                            for (int l = 0; l < planes.GetLength(1) - 1; l++) {
-                                for (int m = 0; m < planes.GetLength(1) - 1; m++) {
+                        for (int k = 0; k < planes.GetLength(1); k++) {
+                            for (int l = 0; l < planes.GetLength(1); l++) {
+                                for (int m = 0; m < planes.GetLength(1); m++) {
+
+                                    if (Mathf.Abs(k - (planes.GetLength(1) / 2)) * Mathf.Abs(l - (planes.GetLength(1) / 2)) * Mathf.Abs(m - (planes.GetLength(1) / 2)) > 20) {
+                                        continue;
+                                    }
                                     var det = Vector3.Dot( Vector3.Cross( planes[j, m].normal, planes[i, l].normal ), planes[h, k].normal );
                                     
                                     Vector3 intersection = 
@@ -175,11 +179,26 @@ public class PenroseGenerator : MonoBehaviour
                                     }
 
 
+                                    // Debug.Log("STARTER K: " + starter_k[h,0] + ", " + starter_k[i,0] + ", " + starter_k[j,0]);
+                                    // Debug.Log("VS:" + (k-(planes.GetLength(1)/2)).ToString() + ", " + (l-(planes.GetLength(1)/2)).ToString() + ", " + (m-(planes.GetLength(1)/2)).ToString());
+
+
                                     for (int indy = 0; indy < 8; indy++) {
-                                        // replace the 3 intersecting plane values with their offset indices
-                                        starter_k[h,indy] = k-(planes.GetLength(1)/2)+(indy & 1);
-                                        starter_k[i,indy] = l-(planes.GetLength(1)/2)+(indy >> 1 & 1);
-                                        starter_k[j,indy] = m-(planes.GetLength(1)/2)+(indy >> 2 & 1);
+                                        // replace the 3 k values assoc. w/ intersecting plane values with their offset indices
+                                        // I THINK THIS IS THE PROBLEM - should be +=, this assumes the base is 0
+
+                                        starter_k[h,indy] = planeOffsets[h] + k - (planes.GetLength(1)/2) + (indy & 1);
+                                        starter_k[i,indy] = planeOffsets[i] + l - (planes.GetLength(1)/2) + (indy >> 1 & 1);
+                                        starter_k[j,indy] = planeOffsets[j] + m - (planes.GetLength(1)/2) + (indy >> 2 & 1);
+
+                                        // Debug.Log("CORRECT:" + (k-(planes.GetLength(1)/2) + (indy & 1)).ToString() + ", " + (l-(planes.GetLength(1)/2)+(indy >> 1 & 1)).ToString() + ", " + (m-(planes.GetLength(1)/2)+ (indy >> 2 & 1)).ToString());
+
+                                        // starter_k[h,indy] += (indy & 1);
+                                        // starter_k[i,indy] += (indy >> 1 & 1);
+                                        // starter_k[j,indy] += (indy >> 2 & 1);
+
+                                        // Debug.Log("STARTER K: " + starter_k[h,indy] + ", " + starter_k[i,indy] + ", " + starter_k[j,indy]);
+
                                     }
 
                                     Vector3[] position = new Vector3[8];
@@ -254,13 +273,13 @@ public class PenroseGenerator : MonoBehaviour
                 for (int j = 0; j < planes.GetLength(1); j++){
                     if (chunk[0] == 0 && chunk[1] == 0 && chunk[2] == 0) {
                         // Debug.Log("plane0");
-                        renderPlane(planes[i, j].flipped, true, planeOffsets[i, j]);
-                        renderPlane(planes[i, j], true, planeOffsets[i, j]);
+                        renderPlane(planes[i, j].flipped, true);
+                        renderPlane(planes[i, j], true);
                     }
                     else {
                         // Debug.Log("plane1");
-                        renderPlane(planes[i, j].flipped, false, planeOffsets[i, j]);
-                        renderPlane(planes[i, j], false, planeOffsets[i, j]);
+                        renderPlane(planes[i, j].flipped, false);
+                        renderPlane(planes[i, j], false);
                     }
                     // renderPlane(planes[i, p-1].flipped, false, planeOffsets[i, p-1]);
                     // renderPlane(planes[i, p-1], false, planeOffsets[i, p-1]);
@@ -336,13 +355,13 @@ public class PenroseGenerator : MonoBehaviour
         // Set the parent of the mesh object to the current object
         terrainMesh.transform.SetParent(loadedChunk.transform);
         
-        for (int i = 0; i < 1; i++) {
-        // for (int i = 0; i < vertices.Length; i++) {
+        for (int i = 0; i < vertices.Length; i++) {
             Instantiate(spherePrefab, vertices[i], Quaternion.identity);
         }
+
     }
 
-    void renderPlane(Plane plane, bool side, Vector3 position) {
+    void renderPlane(Plane plane, bool side) {
         float length = 10;
         GameObject square = new GameObject("Square");
         MeshFilter meshFilter = square.AddComponent<MeshFilter>();
