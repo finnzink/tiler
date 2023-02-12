@@ -1,0 +1,5 @@
+# Ignore the Unity Library folder
+Library/
+
+# Ignore the Unity Temp folder
+Temp/
