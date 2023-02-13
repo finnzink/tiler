@@ -65,12 +65,13 @@ public class PenroseGenerator : MonoBehaviour
         icos.Add(new Vector3(0.0f, 0.0f, 1.0f));
 
         // Debug.Log(string.Join(", ", icos));
-        // int[] startChunk = new int[] { 0, 0, 0, 0, 0, 0 };
-        // genChunk(startChunk);
+
         Vector3 secChunk = new Vector3(0, 0, 0);
         genChunk(secChunk);
-        Vector3 secChunk2 = new Vector3(3, 0, 3);
+        Vector3 secChunk2 = new Vector3(8, 0, 8);
         genChunk(secChunk2);
+        Vector3 secChunk3 = new Vector3(-8, 0, -8);
+        genChunk(secChunk3);
         
         // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
 
@@ -176,30 +177,13 @@ public class PenroseGenerator : MonoBehaviour
                                             // magic formula which I don't understand :)
                                             starter_k[ind, ind2] = Mathf.CeilToInt(Vector3.Dot(icos[ind], intersection) - randomNumbers[ind]);
                                         }
-                                        // if (starter_k[ind, 0] >= planes.GetLength(1)/2 || starter_k[ind, 0] < -1* planes.GetLength(1)/2) { outside = true; }
                                     }
-
-
-                                    // Debug.Log("STARTER K: " + starter_k[h,0] + ", " + starter_k[i,0] + ", " + starter_k[j,0]);
-                                    // Debug.Log("VS:" + (k-(planes.GetLength(1)/2)).ToString() + ", " + (l-(planes.GetLength(1)/2)).ToString() + ", " + (m-(planes.GetLength(1)/2)).ToString());
-
 
                                     for (int indy = 0; indy < 8; indy++) {
                                         // replace the 3 k values assoc. w/ intersecting plane values with their offset indices
-                                        // I THINK THIS IS THE PROBLEM - should be +=, this assumes the base is 0
-
                                         starter_k[h,indy] = planeOffsets[h] + k - (planes.GetLength(1)/2) + (indy & 1);
                                         starter_k[i,indy] = planeOffsets[i] + l - (planes.GetLength(1)/2) + (indy >> 1 & 1);
                                         starter_k[j,indy] = planeOffsets[j] + m - (planes.GetLength(1)/2) + (indy >> 2 & 1);
-
-                                        // Debug.Log("CORRECT:" + (k-(planes.GetLength(1)/2) + (indy & 1)).ToString() + ", " + (l-(planes.GetLength(1)/2)+(indy >> 1 & 1)).ToString() + ", " + (m-(planes.GetLength(1)/2)+ (indy >> 2 & 1)).ToString());
-
-                                        // starter_k[h,indy] += (indy & 1);
-                                        // starter_k[i,indy] += (indy >> 1 & 1);
-                                        // starter_k[j,indy] += (indy >> 2 & 1);
-
-                                        // Debug.Log("STARTER K: " + starter_k[h,indy] + ", " + starter_k[i,indy] + ", " + starter_k[j,indy]);
-
                                     }
 
                                     Vector3[] position = new Vector3[8];
@@ -266,6 +250,8 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
+        renderChunk(chunk);
+
         // display the planes
         if (debugPlanes) {
             Debug.Log(debugPlanes);
@@ -282,8 +268,6 @@ public class PenroseGenerator : MonoBehaviour
                         renderPlane(planes[i, j].flipped, false);
                         renderPlane(planes[i, j], false);
                     }
-                    // renderPlane(planes[i, p-1].flipped, false, planeOffsets[i, p-1]);
-                    // renderPlane(planes[i, p-1], false, planeOffsets[i, p-1]);
                 }
             }
         }
@@ -315,18 +299,10 @@ public class PenroseGenerator : MonoBehaviour
 
         if (dotProduct > 0)
         {
-            Debug.Log("Normals are pointing towards each other");
+            // Debug.Log("Normals are pointing towards each other");
             testflip = true;
             Instantiate(spherePrefab2, center, Quaternion.identity);
         }
-        // else if (dotProduct < 0)
-        // {
-        //     Debug.Log("Normals are pointing away from each other");
-        // }
-        // else
-        // {
-        //     Debug.Log("Normals are orthogonal");
-        // }
 
 
         int[] triangles = new int[]
@@ -378,36 +354,7 @@ public class PenroseGenerator : MonoBehaviour
             mesh.triangles = triangles;
         }
 
-        // fix flickering
         mesh.RecalculateNormals();
-        // MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
-
-        // Instantiate(spherePrefab2, center, Quaternion.identity);
-        // Vector3[] newNormals = new Vector3[mesh.normals.Length];
-        // bool isFlipped = false;
-        // for (int i = 0; i < triangles.Length; i += 3) {
-        //     Vector3 dirToCenter = center - mesh.vertices[mesh.triangles[i]];
-        //     Vector3 normal = mesh.normals[mesh.triangles[i]];
-
-        //     if (Vector3.Dot(mesh.normals[mesh.triangles[i]], dirToCenter) >= 0) {
-
-        //         Instantiate(spherePrefab2, center, Quaternion.identity);
-        //         isFlipped = true;
-        //         Debug.Log("flipped");
-        //         break;
-        //     }
-        // }
-        // if (isFlipped) {
-        //     for (int i = 0; i < newNormals.Length; i++) {
-        //         newNormals[i] = -mesh.normals[i];
-        //     }
-        // }
-        // else {
-        //     for (int i = 0; i < newNormals.Length; i++) {
-        //         newNormals[i] = mesh.normals[i];
-        //     }
-        // }
-        // mesh.normals = newNormals;
 
         GameObject terrainMesh = new GameObject();
         MeshFilter meshFilter = terrainMesh.AddComponent<MeshFilter>();
@@ -474,6 +421,48 @@ public class PenroseGenerator : MonoBehaviour
         meshRenderer.material = material;
 
         square.transform.SetParent(loadedChunk.transform);
+    }
+
+    void renderChunk(Vector3 chunk) {
+        // Create a new GameObject and add a LineRenderer component to it
+        GameObject gameObject = new GameObject("Chunk");
+        LineRenderer lineRenderer = gameObject.AddComponent<LineRenderer>();
+
+        Material material = new Material(Shader.Find("Standard"));
+        material.color = Color.white;
+
+        lineRenderer.material = material;
+        lineRenderer.widthMultiplier = 0.1f;
+
+        // generate vertices
+        Vector3[] vertices = new Vector3[8];
+        for (int i = 0; i < 8; i++) {
+            vertices[i] = new Vector3(chunk.x + (i & 1) * 8, chunk.y + (i >> 1 & 1) * 8, chunk.z + (i >> 2 & 1) * 8);
+        }
+
+        // Connect the vertices to form the wireframe box.
+        lineRenderer.positionCount = 16;
+        lineRenderer.SetPosition(0, vertices[0]);
+        lineRenderer.SetPosition(1, vertices[1]);
+        lineRenderer.SetPosition(2, vertices[3]);
+        lineRenderer.SetPosition(3, vertices[2]);
+        lineRenderer.SetPosition(4, vertices[0]);
+
+        lineRenderer.SetPosition(5, vertices[4]);
+
+        lineRenderer.SetPosition(6, vertices[5]);
+        lineRenderer.SetPosition(7, vertices[1]);
+        lineRenderer.SetPosition(8, vertices[5]);
+
+        lineRenderer.SetPosition(9, vertices[7]);
+        lineRenderer.SetPosition(10, vertices[3]);
+        lineRenderer.SetPosition(11, vertices[7]);
+
+        lineRenderer.SetPosition(12, vertices[6]);
+        lineRenderer.SetPosition(13, vertices[2]);
+        lineRenderer.SetPosition(14, vertices[6]);
+
+        lineRenderer.SetPosition(15, vertices[4]);
     }
 
 }
