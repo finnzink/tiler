@@ -16,15 +16,21 @@ struct Tile {
     }
 }
 
+// struct Chunk {
+//     public Vector3 coords;
+//     public Vector3[,] faces;
+// }
+
 public class PenroseGenerator : MonoBehaviour
 {
     public List<Vector3> icos = new List<Vector3>();
     public GameObject spherePrefab;
     public GameObject spherePrefab2;
-    public Material material;
-    public MeshFilter meshFilter;
-    public MeshCollider meshCollider;
-    public GameObject loadedChunk;
+    // public Material material;
+    // public MeshFilter meshFilter;
+    // public MeshCollider meshCollider;
+    public List<GameObject> loadedChunk;
+    public GameObject triangleObj;
     public Mesh mesh;
     public float[] randomNumbers = new float[6];
     public bool debugPlanes;
@@ -35,11 +41,15 @@ public class PenroseGenerator : MonoBehaviour
     {
         debugPlanes = false;
         showRhombs = true;
-        loadedChunk = new GameObject();
+        loadedChunk.Add(new GameObject());
         mesh = new Mesh();
+
+        triangleObj = new GameObject();
+        MeshFilter triMeshFilter = triangleObj.AddComponent<MeshFilter>();
+        MeshRenderer triMeshRenderer = triangleObj.AddComponent<MeshRenderer>();
         // meshFilter = GetComponent<MeshFilter>();
-        meshCollider = GetComponent<MeshCollider>();
-        material.color = new Color(1, 1, 1, 1);
+        // meshCollider = GetComponent<MeshCollider>();
+        // material.color = new Color(1, 1, 1, 1);
         // generate offsets
         int seed = (int)System.DateTime.Now.Ticks;
         Random.InitState(seed);
@@ -66,8 +76,8 @@ public class PenroseGenerator : MonoBehaviour
 
         // Debug.Log(string.Join(", ", icos));
 
-        for (int i = -1; i < 2; i++) {
-            for (int j = -1; j < 2; j++) {
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
                 genChunk(new Vector3(i*8, 0, j*8));
             }
         }
@@ -82,22 +92,65 @@ public class PenroseGenerator : MonoBehaviour
         Camera playerCamera = GameObject.Find("Player Camera").GetComponent<Camera>();
 
         Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
-        if (Physics.Raycast(ray, out RaycastHit hit, float.MaxValue))
+
+        RaycastHit closestHit = new RaycastHit();
+        float closestDistance = float.MaxValue;
+
+        RaycastHit[] hits = Physics.RaycastAll(ray);
+        foreach (RaycastHit hit in hits)
         {
-            if (hit.triangleIndex != -1) {
-                Mesh mesh = hit.collider.GetComponent<MeshFilter>().mesh;
-                int triangleIndex = hit.triangleIndex;
-
-                GetComponent<MeshFilter>().mesh = mesh;
-                // Update the mesh with the new colors
-
-                Material material = new Material(Shader.Find("Unlit/Color"));
-                material.color = Color.red;
-                mesh.RecalculateNormals();
-                MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
-                meshRenderer.material = material;
+            if (hit.distance < closestDistance)
+            {
+                closestHit = hit;
+                closestDistance = hit.distance;
             }
         }
+        MeshCollider meshCollider = closestHit.collider as MeshCollider;
+
+        if (hits.Length == 0 || meshCollider == null)
+        {
+            return;
+        }
+
+        Vector3 offset = -.2f * playerCamera.transform.forward; 
+
+        Vector3 p0 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 0]] + offset;
+        Vector3 p1 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 1]]+ offset;
+        Vector3 p2 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 2]]+ offset;
+
+        float d01 = Vector3.Distance(p0, p1);
+        float d12 = Vector3.Distance(p1, p2);
+        float d20 = Vector3.Distance(p2, p0);
+
+        Vector3 toFlip = new Vector3();
+        Vector3 toFlip1 = new Vector3();
+        Vector3 toFlip2 = new Vector3();
+
+        // this seems very inefficient, but it works for now
+        if (Mathf.Abs(d01 - d12) < .001) {
+            toFlip = p1;
+            toFlip1 = p2;
+            toFlip2 = p0;
+        } else if (Mathf.Abs(d01 - d20) < .001) {
+            toFlip = p0; // corr
+            toFlip1 = p2;
+            toFlip2 = p1;
+        } else {
+            toFlip = p2;
+            toFlip1 = p1;
+            toFlip2 = p0;
+        }
+
+        Vector3 midPoint = (toFlip1 + toFlip2);
+        Vector3 finalFlip = midPoint - toFlip;
+
+        Mesh triangleMesh = new Mesh();
+        triangleMesh.vertices = new Vector3[] { p0, p1, p2, finalFlip, toFlip2, toFlip1 };
+        triangleMesh.triangles = new int[] { 0, 1, 2, 3, 4, 5, 4, 3, 5 };
+        triangleMesh.RecalculateNormals();
+
+        MeshFilter triangleMeshFilter = triangleObj.GetComponent<MeshFilter>();
+        triangleMeshFilter.sharedMesh = triangleMesh;
     }
 
     public void genChunk(Vector3 chunk) {
@@ -111,7 +164,7 @@ public class PenroseGenerator : MonoBehaviour
         int p = 8; // number of parallel planes
         Plane[,] planes = new Plane[6, p];
 
-        // THIS IS BEST FOR CENTROIDS
+        // THIS IS BEST FOR CENTROIDS, TRY NOT TO CHANGE UNLESS YOU CHANGE THE CHUNK SIZE
         Vector3 testPoint = (chunk * .5f)+ new Vector3(2, 2, 2);
         // GameObject instantiatedSphere = Instantiate(spherePrefab, offsetPoint, Quaternion.identity);
         // instantiatedSphere.transform.SetParent(loadedChunk.transform);
@@ -136,6 +189,9 @@ public class PenroseGenerator : MonoBehaviour
         List<Tile> tiles = new List<Tile>();
 
         Vector3 centroid = new Vector3(0,0,0);
+
+        Material material = new Material(Shader.Find("Standard"));
+        material.color = new Color(1 - ((chunk[0] ) / 20), 1-((chunk[1]) / 20), 1- ((chunk[2]) / 20), 1f);
 
         // first three loops are for which 3 intersecting bases
         for (int h = 0; h < 6; h++) {
@@ -205,13 +261,7 @@ public class PenroseGenerator : MonoBehaviour
                                     // }
                                     // Debug.Log("hit");
                                     // Make the Tile object
-                                    Material material = new Material(Shader.Find("Standard"));
-                                    if (outside) {
-                                    material.color = Color.red;
-                                    }
-                                    else {
-                                        material.color = new Color(1 - ((chunk[0] ) / 20), 1-((chunk[1]) / 20), 1- ((chunk[2]) / 20), 1f);
-                                    }
+                                    
                                     Tile curr = new Tile(intersection, starter_k, position, material);
                                     tiles.Add(curr);
                                 }   
@@ -236,6 +286,9 @@ public class PenroseGenerator : MonoBehaviour
         double fofilter = 8;
         Vector3 COI = chunk;
         // can change chunk to centroid in the below loop if you want to see the chunk's center of mass
+
+        List<CombineInstance> combine = new List<CombineInstance>();
+
         for (int i = 0; i < tiles.Count; i++) {
             if (tiles[i].vertices[0][0] < COI[0] || tiles[i].vertices[0][0] > COI[0] + fofilter
                 || tiles[i].vertices[0][1] < COI[1] || tiles[i].vertices[0][1] > COI[1] + fofilter
@@ -243,9 +296,26 @@ public class PenroseGenerator : MonoBehaviour
                 continue;
             }
             if (showRhombs) {
-                renderRhomb(tiles[i].vertices, tiles[i].material);
+                GameObject currRhomb = renderRhomb(tiles[i].vertices, tiles[i].material);
+                combine.Add(new CombineInstance(){
+                    mesh = currRhomb.GetComponent<MeshFilter>().sharedMesh,
+                    transform = currRhomb.GetComponent<MeshFilter>().transform.localToWorldMatrix
+                });
+                Destroy(currRhomb);
             }
         }
+
+        GameObject terrainObj = new GameObject();
+        Mesh combinedMesh = new Mesh();
+        combinedMesh.CombineMeshes(combine.ToArray(), true, true);
+
+        MeshFilter meshFilter = terrainObj.AddComponent<MeshFilter>();
+        MeshRenderer meshRenderer = terrainObj.AddComponent<MeshRenderer>();
+        MeshCollider meshCollider = terrainObj.AddComponent<MeshCollider>();
+
+        meshCollider.sharedMesh = combinedMesh;
+        meshRenderer.material = material;
+        meshFilter.sharedMesh = combinedMesh;
 
         renderChunk(chunk);
 
@@ -270,7 +340,7 @@ public class PenroseGenerator : MonoBehaviour
         }
     }
 
-    void renderRhomb(Vector3[] vertices, Material material) {
+    GameObject renderRhomb(Vector3[] vertices, Material material) {
         // MeshFilter meshFilter = GetComponent<MeshFilter>();
         Mesh mesh = new Mesh();
         // meshFilter.mesh = mesh;
@@ -357,7 +427,7 @@ public class PenroseGenerator : MonoBehaviour
         MeshFilter meshFilter = terrainMesh.AddComponent<MeshFilter>();
         MeshRenderer meshRenderer = terrainMesh.AddComponent<MeshRenderer>();
 
-        meshCollider.sharedMesh = mesh;
+        // meshCollider.sharedMesh = mesh;
         meshRenderer.material = material;
 
         // Set the mesh and material properties
@@ -365,11 +435,13 @@ public class PenroseGenerator : MonoBehaviour
         meshRenderer.material = material;
 
         // Set the parent of the mesh object to the current object
-        terrainMesh.transform.SetParent(loadedChunk.transform);
+        // terrainMesh.transform.SetParent(loadedChunk.transform);
         
         for (int i = 0; i < vertices.Length; i++) {
             // Instantiate(spherePrefab, vertices[i], Quaternion.identity);
         }
+
+        return terrainMesh;
 
     }
 
@@ -417,7 +489,7 @@ public class PenroseGenerator : MonoBehaviour
         else {material.color = Color.blue;}
         meshRenderer.material = material;
 
-        square.transform.SetParent(loadedChunk.transform);
+        // square.transform.SetParent(loadedChunk.transform);
     }
 
     void renderChunk(Vector3 chunk) {

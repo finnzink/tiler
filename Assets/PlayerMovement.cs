@@ -35,12 +35,23 @@ public class PlayerMovement : MonoBehaviour
     {
         Vector3 playerPosition = playerBody.position;
         GUI.backgroundColor = Color.black;
-        string[] formattedStrings = new string[basisOffset.Length];
-        for (int i = 0; i < basisOffset.Length; i++)
-        {
-            formattedStrings[i] = string.Format("{0:0.##}", basisOffset[i]);
-        }
-        GUI.Box(new Rect(0, 0, 300, 75), "Position: " + playerPosition.ToString() + "\nBasis: " + string.Join(",", formattedStrings) + "\nChunk: " + string.Join(",", currChunk));
+        // string[] formattedStrings = new string[basisOffset.Length];
+        // for (int i = 0; i < basisOffset.Length; i++)
+        // {
+        //     formattedStrings[i] = string.Format("{0:0.##}", basisOffset[i]);
+        // }
+
+        Vector2 center = new Vector2(Screen.width / 2, Screen.height / 2);
+
+        // GUI.color = Color.white;
+        GUI.DrawTexture(new Rect(center.x - 10 / 2, center.y, 10, 1), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(center.x, center.y - 10 / 2, 1, 10), Texture2D.whiteTexture);
+
+        GUI.Box(new Rect(0, 0, 300, 75), 
+        "Position: " + playerPosition.ToString() 
+        // + "\nBasis: " + string.Join(",", formattedStrings) 
+        + "\nChunk: " + string.Join(",", currChunk)
+        + "\nFPS: " + (1.0f / Time.deltaTime).ToString());
     }
 
     void Update()
