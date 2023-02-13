@@ -66,12 +66,11 @@ public class PenroseGenerator : MonoBehaviour
 
         // Debug.Log(string.Join(", ", icos));
 
-        Vector3 secChunk = new Vector3(0, 0, 0);
-        genChunk(secChunk);
-        Vector3 secChunk2 = new Vector3(8, 0, 8);
-        genChunk(secChunk2);
-        Vector3 secChunk3 = new Vector3(-8, 0, -8);
-        genChunk(secChunk3);
+        for (int i = -1; i < 2; i++) {
+            for (int j = -1; j < 2; j++) {
+                genChunk(new Vector3(i*8, 0, j*8));
+            }
+        }
         
         // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
 
@@ -112,12 +111,8 @@ public class PenroseGenerator : MonoBehaviour
         int p = 8; // number of parallel planes
         Plane[,] planes = new Plane[6, p];
 
-        // CALCULATE NEW OFFSET, which is in the center of the new chunk
-        // for (int i = 0; i < 3; i++) {
-        //     offsetPoint += chunk[i] * p * icos[i];
-        // }
-        // Vector3 offsetPoint = new Vector3((chunk[0] * 8) + Mathf.Sign(chunk[0] * 4), (chunk[1]*8) + Mathf.Sign(chunk[1] * 4), (chunk[2]*8) + Mathf.Sign(chunk[2] * 4));
-        Vector3 testPoint = chunk;
+        // THIS IS BEST FOR CENTROIDS
+        Vector3 testPoint = (chunk * .5f)+ new Vector3(2, 2, 2);
         // GameObject instantiatedSphere = Instantiate(spherePrefab, offsetPoint, Quaternion.identity);
         // instantiatedSphere.transform.SetParent(loadedChunk.transform);
         // float dist = Vector3.Distance(offsetPoint, Vector3.zero);
@@ -238,11 +233,13 @@ public class PenroseGenerator : MonoBehaviour
         }
 
 
-        double fofilter = 4;
+        double fofilter = 8;
+        Vector3 COI = chunk;
+        // can change chunk to centroid in the below loop if you want to see the chunk's center of mass
         for (int i = 0; i < tiles.Count; i++) {
-            if (tiles[i].vertices[0][0] < centroid[0] - fofilter || tiles[i].vertices[0][0] > centroid[0] + fofilter
-                || tiles[i].vertices[0][1] < centroid[1] - fofilter || tiles[i].vertices[0][1] > centroid[1] + fofilter
-                || tiles[i].vertices[0][2] < centroid[2] - fofilter || tiles[i].vertices[0][2] > centroid[2] + fofilter) {
+            if (tiles[i].vertices[0][0] < COI[0] || tiles[i].vertices[0][0] > COI[0] + fofilter
+                || tiles[i].vertices[0][1] < COI[1] || tiles[i].vertices[0][1] > COI[1] + fofilter
+                || tiles[i].vertices[0][2] < COI[2] || tiles[i].vertices[0][2] > COI[2] + fofilter) {
                 continue;
             }
             if (showRhombs) {
@@ -301,7 +298,7 @@ public class PenroseGenerator : MonoBehaviour
         {
             // Debug.Log("Normals are pointing towards each other");
             testflip = true;
-            Instantiate(spherePrefab2, center, Quaternion.identity);
+            // Instantiate(spherePrefab2, center, Quaternion.identity);
         }
 
 
@@ -371,7 +368,7 @@ public class PenroseGenerator : MonoBehaviour
         terrainMesh.transform.SetParent(loadedChunk.transform);
         
         for (int i = 0; i < vertices.Length; i++) {
-            Instantiate(spherePrefab, vertices[i], Quaternion.identity);
+            // Instantiate(spherePrefab, vertices[i], Quaternion.identity);
         }
 
     }
