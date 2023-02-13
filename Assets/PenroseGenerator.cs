@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-struct Tile {
+public class Tile {
     public Vector3 point;
     public Vector3[] vertices;
     public int[,] k;
@@ -23,6 +23,7 @@ struct Tile {
 
 public class PenroseGenerator : MonoBehaviour
 {
+    public Dictionary<Vector3, (Tile, Tile)> faceMap = new Dictionary<Vector3, (Tile, Tile)>();
     public List<Vector3> icos = new List<Vector3>();
     public GameObject spherePrefab;
     public GameObject spherePrefab2;
@@ -193,6 +194,12 @@ public class PenroseGenerator : MonoBehaviour
         Material material = new Material(Shader.Find("Standard"));
         material.color = new Color(1 - ((chunk[0] ) / 20), 1-((chunk[1]) / 20), 1- ((chunk[2]) / 20), 1f);
 
+        double fofilter = 8;
+        Vector3 COI = chunk;
+        // can change chunk to centroid in the below loop if you want to see the chunk's center of mass
+
+        List<CombineInstance> combine = new List<CombineInstance>();
+
         // first three loops are for which 3 intersecting bases
         for (int h = 0; h < 6; h++) {
             for (int i = h + 1; i < 6; i++) {
@@ -249,21 +256,23 @@ public class PenroseGenerator : MonoBehaviour
                                     if (k == 4 && l == 4 && m == 4) {
                                         centroid = position[0];
                                     }
-
-                                    // int filter = 8;
-                                    // if (position[0][0] >= chunk[0] + 4 || position[0][0] < chunk[0] - 4
-                                    //     || position[0][1] >= chunk[1] + 4 || position[0][1] < chunk[1] - 4
-                                    //     || position[0][2] >= chunk[2] + 4 || position[0][2] < chunk[2] - 4) { break; }
-
-                                    // check if part of terrain
-                                    // if (Mathf.Abs(position[0].y - yFunk) > .5) {
-                                    //     break;
-                                    // }
-                                    // Debug.Log("hit");
-                                    // Make the Tile object
                                     
                                     Tile curr = new Tile(intersection, starter_k, position, material);
                                     tiles.Add(curr);
+
+                                    if (curr.vertices[0][0] < COI[0] || curr.vertices[0][0] > COI[0] + fofilter
+                                        || curr.vertices[0][1] < COI[1] || curr.vertices[0][1] > COI[1] + fofilter
+                                        || curr.vertices[0][2] < COI[2] || curr.vertices[0][2] > COI[2] + fofilter) {
+                                        continue;
+                                    }
+                                    if (showRhombs) {
+                                        GameObject currRhomb = renderRhomb(curr.vertices, curr.material, curr);
+                                        combine.Add(new CombineInstance(){
+                                            mesh = currRhomb.GetComponent<MeshFilter>().sharedMesh,
+                                            transform = currRhomb.GetComponent<MeshFilter>().transform.localToWorldMatrix
+                                        });
+                                        Destroy(currRhomb);
+                                    }
                                 }   
                             }
                         }
@@ -279,29 +288,6 @@ public class PenroseGenerator : MonoBehaviour
             for (int i = 0; i < numTiles; i++) {
                 // foreach (Vector3 vertex in tiles[i].vertices)
                 // Instantiate(spherePrefab, vertex, Quaternion.identity);
-            }
-        }
-
-
-        double fofilter = 8;
-        Vector3 COI = chunk;
-        // can change chunk to centroid in the below loop if you want to see the chunk's center of mass
-
-        List<CombineInstance> combine = new List<CombineInstance>();
-
-        for (int i = 0; i < tiles.Count; i++) {
-            if (tiles[i].vertices[0][0] < COI[0] || tiles[i].vertices[0][0] > COI[0] + fofilter
-                || tiles[i].vertices[0][1] < COI[1] || tiles[i].vertices[0][1] > COI[1] + fofilter
-                || tiles[i].vertices[0][2] < COI[2] || tiles[i].vertices[0][2] > COI[2] + fofilter) {
-                continue;
-            }
-            if (showRhombs) {
-                GameObject currRhomb = renderRhomb(tiles[i].vertices, tiles[i].material);
-                combine.Add(new CombineInstance(){
-                    mesh = currRhomb.GetComponent<MeshFilter>().sharedMesh,
-                    transform = currRhomb.GetComponent<MeshFilter>().transform.localToWorldMatrix
-                });
-                Destroy(currRhomb);
             }
         }
 
@@ -340,7 +326,7 @@ public class PenroseGenerator : MonoBehaviour
         }
     }
 
-    GameObject renderRhomb(Vector3[] vertices, Material material) {
+    GameObject renderRhomb(Vector3[] vertices, Material material, Tile curr) {
         // MeshFilter meshFilter = GetComponent<MeshFilter>();
         Mesh mesh = new Mesh();
         // meshFilter.mesh = mesh;
@@ -413,6 +399,19 @@ public class PenroseGenerator : MonoBehaviour
             6, 2, 3, // 2, 3, 6, 7
             6, 3, 7,
         };
+
+        for (int i = 0; i < triangles.Length; i+=6 ) {
+            Vector3 key = vertices[triangles[i]] + vertices[triangles[i+1]] + vertices[triangles[i+2]] + vertices[triangles[i+5]];
+            if (faceMap.ContainsKey(key)){
+                if (faceMap[key].Item2 != null) {
+                    Debug.Log("MORE THAN 2 FACES, MUST BE AN ERROR");
+                } else {
+                    faceMap[key] = (faceMap[key].Item1, curr);
+                }
+            } else {
+                faceMap.Add(key, (curr, null));
+            }
+        }
 
         if (testflip) {
             mesh.triangles = triangles2;
