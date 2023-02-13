@@ -20,6 +20,7 @@ public class PenroseGenerator : MonoBehaviour
 {
     public List<Vector3> icos = new List<Vector3>();
     public GameObject spherePrefab;
+    public GameObject spherePrefab2;
     public Material material;
     public MeshFilter meshFilter;
     public MeshCollider meshCollider;
@@ -78,7 +79,7 @@ public class PenroseGenerator : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Camera playerCamera = GameObject.Find("PlayerCamera").GetComponent<Camera>();
+        Camera playerCamera = GameObject.Find("Player Camera").GetComponent<Camera>();
 
         Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
         if (Physics.Raycast(ray, out RaycastHit hit, float.MaxValue))
@@ -253,11 +254,11 @@ public class PenroseGenerator : MonoBehaviour
         }
 
 
-        
+        double fofilter = 4;
         for (int i = 0; i < tiles.Count; i++) {
-            if (tiles[i].vertices[0][0] < centroid[0] - 4 || tiles[i].vertices[0][0] > centroid[0] + 4
-                || tiles[i].vertices[0][1] < centroid[1] - 4 || tiles[i].vertices[0][1] > centroid[1] + 4
-                || tiles[i].vertices[0][2] < centroid[2] - 4 || tiles[i].vertices[0][2] > centroid[2] + 4) {
+            if (tiles[i].vertices[0][0] < centroid[0] - fofilter || tiles[i].vertices[0][0] > centroid[0] + fofilter
+                || tiles[i].vertices[0][1] < centroid[1] - fofilter || tiles[i].vertices[0][1] > centroid[1] + fofilter
+                || tiles[i].vertices[0][2] < centroid[2] - fofilter || tiles[i].vertices[0][2] > centroid[2] + fofilter) {
                 continue;
             }
             if (showRhombs) {
@@ -294,6 +295,40 @@ public class PenroseGenerator : MonoBehaviour
         // meshFilter.mesh = mesh;
         mesh.vertices = vertices;
 
+        // calc center of rhomb
+        Vector3 center = new Vector3(0, 0, 0);
+        for (int i = 0; i < 8; i++) {
+            center += vertices[i];
+        }
+        center /= 8;
+
+        // testing if flipped
+        bool testflip = false;
+
+        Vector3 edge1 = vertices[1] - vertices[0];
+        Vector3 edge2 = vertices[5] - vertices[0];
+        Vector3 normal_1 = Vector3.Cross(edge1, edge2).normalized;
+
+        Vector3 dirToCenter = center - vertices[0];
+
+        float dotProduct = Vector3.Dot(normal_1, dirToCenter);
+
+        if (dotProduct > 0)
+        {
+            Debug.Log("Normals are pointing towards each other");
+            testflip = true;
+            Instantiate(spherePrefab2, center, Quaternion.identity);
+        }
+        // else if (dotProduct < 0)
+        // {
+        //     Debug.Log("Normals are pointing away from each other");
+        // }
+        // else
+        // {
+        //     Debug.Log("Normals are orthogonal");
+        // }
+
+
         int[] triangles = new int[]
         {
             0, 2, 1, // 0, 1, 2, 3
@@ -313,33 +348,66 @@ public class PenroseGenerator : MonoBehaviour
             
             2, 6, 3, // 2, 3, 6, 7
             3, 6, 7,
-
-            // DEBUG
-
-            // 2, 0, 1, // 0, 1, 2, 3
-            // 2, 1, 3,
-
-            // 1, 0, 5, // 0, 1, 4, 5
-            // 5, 0, 4,
-
-            // 4, 0, 6, // 0, 2, 4, 6
-            // 6, 0, 2,
-
-            // 5, 6, 7, // 4, 5, 6, 7
-            // 6, 5, 4,
-
-            // 3, 1, 7, // 1, 3, 5, 7
-            // 7, 1, 5,
-            
-            // 6, 2, 3, // 2, 3, 6, 7
-            // 6, 3, 7
         };
 
-        mesh.triangles = triangles;
+        int[] triangles2 = new int[]
+        {
+            2, 0, 1, // 0, 1, 2, 3
+            2, 1, 3,
 
+            1, 0, 5, // 0, 1, 4, 5
+            5, 0, 4,
+
+            4, 0, 6, // 0, 2, 4, 6
+            6, 0, 2,
+
+            5, 6, 7, // 4, 5, 6, 7
+            6, 5, 4,
+
+            3, 1, 7, // 1, 3, 5, 7
+            7, 1, 5,
+            
+            6, 2, 3, // 2, 3, 6, 7
+            6, 3, 7,
+        };
+
+        if (testflip) {
+            mesh.triangles = triangles2;
+        }
+        else {
+            mesh.triangles = triangles;
+        }
+
+        // fix flickering
         mesh.RecalculateNormals();
         // MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
-        
+
+        // Instantiate(spherePrefab2, center, Quaternion.identity);
+        // Vector3[] newNormals = new Vector3[mesh.normals.Length];
+        // bool isFlipped = false;
+        // for (int i = 0; i < triangles.Length; i += 3) {
+        //     Vector3 dirToCenter = center - mesh.vertices[mesh.triangles[i]];
+        //     Vector3 normal = mesh.normals[mesh.triangles[i]];
+
+        //     if (Vector3.Dot(mesh.normals[mesh.triangles[i]], dirToCenter) >= 0) {
+
+        //         Instantiate(spherePrefab2, center, Quaternion.identity);
+        //         isFlipped = true;
+        //         Debug.Log("flipped");
+        //         break;
+        //     }
+        // }
+        // if (isFlipped) {
+        //     for (int i = 0; i < newNormals.Length; i++) {
+        //         newNormals[i] = -mesh.normals[i];
+        //     }
+        // }
+        // else {
+        //     for (int i = 0; i < newNormals.Length; i++) {
+        //         newNormals[i] = mesh.normals[i];
+        //     }
+        // }
+        // mesh.normals = newNormals;
 
         GameObject terrainMesh = new GameObject();
         MeshFilter meshFilter = terrainMesh.AddComponent<MeshFilter>();

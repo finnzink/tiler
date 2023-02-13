@@ -28,6 +28,7 @@ public class PlayerMovement : MonoBehaviour
             icos.Add(new Vector3(x, y, z));
         }
         icos.Add(new Vector3(0.0f, 0.0f, 1.0f));
+        terrainGenator = GameObject.Find("TerrainController");
     }
 
     void OnGUI()
