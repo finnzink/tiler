@@ -9,6 +9,10 @@ public class Tile {
     public Material material;
     public int pos;
 
+    // for each (hashed) face in the Tile, will return the face index in the mesh's triangle array, OR -1 if its not in the mesh
+    public Dictionary<Vector3,int> tris_in_mesh; 
+    public bool filled;
+
     public Tile(Vector3 point, int[,] k, Vector3[] vertices, Material material, int pos) {
         this.point = point;
         this.k = k;
@@ -31,6 +35,7 @@ public class PenroseGenerator : MonoBehaviour
     public GameObject terrainObj;
     public GameObject spherePrefab;
     public GameObject spherePrefab2;
+    public Stack<int> freeTriangles; // updated on deletions, checked on insertions
     // public Material material;
     // public MeshFilter meshFilter;
     // public MeshCollider meshCollider;
@@ -480,6 +485,8 @@ public class PenroseGenerator : MonoBehaviour
             6, 3, 7,
         };
 
+        // this should be changed to modify the Tile's vertices directly. 
+        // From there the triangles can be generated elsewhere without checking.
         if (testflip) {
             mesh.triangles = triangles2;
         }
@@ -513,14 +520,14 @@ public class PenroseGenerator : MonoBehaviour
 
         GameObject terrainMesh = new GameObject();
         MeshFilter meshFilter = terrainMesh.AddComponent<MeshFilter>();
-        MeshRenderer meshRenderer = terrainMesh.AddComponent<MeshRenderer>();
+        // MeshRenderer meshRenderer = terrainMesh.AddComponent<MeshRenderer>();
 
         // meshCollider.sharedMesh = mesh;
         // meshRenderer.material = curr.material;
 
         // Set the mesh and material properties
         meshFilter.mesh = mesh;
-        meshRenderer.material = curr.material;
+        // meshRenderer.material = curr.material;
 
         // Set the parent of the mesh object to the current object
         // terrainMesh.transform.SetParent(loadedChunk.transform);
@@ -531,6 +538,22 @@ public class PenroseGenerator : MonoBehaviour
 
         return terrainMesh;
 
+    }
+
+    // for adding tiles, how to know vertices index?
+    // --> vertices should be added by default to the mesh.vertices as soon as the tile is generated even if tile isn't filled.
+    // --> from there, the Tile object can store the index of its vertices in the mesh, rather than in an array in the object itself
+
+    void addRhombToMesh(Tile toAdd) {
+        // check each of the six faces to see if the corresponding neighbor tiles are sharing an face that is in the mesh (using faceMap and Tile.tris_in_mesh)
+        // if so, that means that face needs to be deleted from the mesh (so mesh's triangles assoc with the face are modified to 0,0,0 and freeTriangles is updated)
+        // if not, that means the face should be added to the mesh (freeTriangles checked -> if empty increase triangles array by 3*2*8 and freeTriangles by 8, otherwise add to triangles directly)
+    }
+
+    void deleteRhombFromMesh(Tile toDelete) {
+        // check each of the six faces to see if the corresponding neighbor is filled (using faceMap and Tile.filled)
+        // if so, that means the corresponding face needs to be added to the mesh
+        // also need to delete the faces of the Tile itself 
     }
 
     void renderPlane(Plane plane, bool side) {
