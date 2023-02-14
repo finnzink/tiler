@@ -32,6 +32,7 @@ public class PenroseGenerator : MonoBehaviour
     // public MeshCollider meshCollider;
     public List<GameObject> loadedChunk;
     public GameObject triangleObj;
+    public GameObject triangleObj2;
     public Mesh mesh;
     public float[] randomNumbers = new float[6];
     public bool debugPlanes;
@@ -45,9 +46,18 @@ public class PenroseGenerator : MonoBehaviour
         loadedChunk.Add(new GameObject());
         mesh = new Mesh();
 
+        Material red_material = new Material(Shader.Find("Standard"));
+        red_material.color = Color.red;
+
         triangleObj = new GameObject();
         MeshFilter triMeshFilter = triangleObj.AddComponent<MeshFilter>();
         MeshRenderer triMeshRenderer = triangleObj.AddComponent<MeshRenderer>();
+        triMeshRenderer.material = red_material;
+
+        triangleObj2 = new GameObject();
+        MeshFilter tri2MeshFilter = triangleObj2.AddComponent<MeshFilter>();
+        MeshRenderer tri2MeshRenderer = triangleObj2.AddComponent<MeshRenderer>();
+        tri2MeshRenderer.material = red_material;
         // meshFilter = GetComponent<MeshFilter>();
         // meshCollider = GetComponent<MeshCollider>();
         // material.color = new Color(1, 1, 1, 1);
@@ -77,8 +87,8 @@ public class PenroseGenerator : MonoBehaviour
 
         // Debug.Log(string.Join(", ", icos));
 
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
+        for (int i = 0; i < 1; i++) {
+            for (int j = 0; j < 1; j++) {
                 genChunk(new Vector3(i*8, 0, j*8));
             }
         }
@@ -90,6 +100,8 @@ public class PenroseGenerator : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        // return; 
+        // Debug.Log("SHOULD NOT PRINT");
         Camera playerCamera = GameObject.Find("Player Camera").GetComponent<Camera>();
 
         Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
@@ -115,9 +127,9 @@ public class PenroseGenerator : MonoBehaviour
 
         Vector3 offset = -.2f * playerCamera.transform.forward; 
 
-        Vector3 p0 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 0]] + offset;
-        Vector3 p1 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 1]]+ offset;
-        Vector3 p2 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 2]]+ offset;
+        Vector3 p0 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 0]];
+        Vector3 p1 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 1]];
+        Vector3 p2 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 2]];
 
         float d01 = Vector3.Distance(p0, p1);
         float d12 = Vector3.Distance(p1, p2);
@@ -145,13 +157,39 @@ public class PenroseGenerator : MonoBehaviour
         Vector3 midPoint = (toFlip1 + toFlip2);
         Vector3 finalFlip = midPoint - toFlip;
 
-        Mesh triangleMesh = new Mesh();
-        triangleMesh.vertices = new Vector3[] { p0, p1, p2, finalFlip, toFlip2, toFlip1 };
-        triangleMesh.triangles = new int[] { 0, 1, 2, 3, 4, 5, 4, 3, 5 };
-        triangleMesh.RecalculateNormals();
+        Vector3 key = RoundToNearestHundredth(p0 + p1 + p2 + finalFlip); 
+
+        if (!faceMap.ContainsKey(key)) {
+            Debug.Log("FLOAT ERROR"); 
+        }
+
+        if (faceMap[key].Item1 == null || faceMap[key].Item2 == null) { return;}// no neighbor
+
+        Tile t = new Tile(faceMap[key].Item1.point, faceMap[key].Item1.k, faceMap[key].Item1.vertices, faceMap[key].Item1.material);
+        Tile t2 = new Tile(faceMap[key].Item2.point, faceMap[key].Item2.k, faceMap[key].Item2.vertices, faceMap[key].Item2.material);
+
+        GameObject tempObj = renderRhomb(t);
+        GameObject tempObj2 = renderRhomb(t2);
 
         MeshFilter triangleMeshFilter = triangleObj.GetComponent<MeshFilter>();
-        triangleMeshFilter.sharedMesh = triangleMesh;
+        MeshFilter tempMeshFilter = tempObj.GetComponent<MeshFilter>();
+        triangleMeshFilter.sharedMesh = tempMeshFilter.sharedMesh;
+
+        MeshFilter triangleMeshFilter2 = triangleObj2.GetComponent<MeshFilter>();
+        MeshFilter tempMeshFilter2 = tempObj2.GetComponent<MeshFilter>();
+        triangleMeshFilter2.sharedMesh = tempMeshFilter2.sharedMesh;
+
+        Destroy(tempObj);
+        Destroy(tempObj2);
+
+        // Mesh triangleMesh = new Mesh();
+        // triangleMesh.vertices = new Vector3[] { p0 + offset, p1 + offset, p2 + offset, finalFlip + offset, toFlip2 + offset, toFlip1 + offset};
+        // triangleMesh.triangles = new int[] { 0, 1, 2, 3, 4, 5, 4, 3, 5 };
+
+        // triangleMesh.RecalculateNormals();
+
+        // MeshFilter triangleMeshFilter = triangleObj.GetComponent<MeshFilter>();
+        // triangleMeshFilter.sharedMesh = triangleMesh;
     }
 
     public void genChunk(Vector3 chunk) {
@@ -266,11 +304,13 @@ public class PenroseGenerator : MonoBehaviour
                                         continue;
                                     }
                                     if (showRhombs) {
-                                        GameObject currRhomb = renderRhomb(curr.vertices, curr.material, curr);
-                                        combine.Add(new CombineInstance(){
-                                            mesh = currRhomb.GetComponent<MeshFilter>().sharedMesh,
-                                            transform = currRhomb.GetComponent<MeshFilter>().transform.localToWorldMatrix
-                                        });
+                                        GameObject currRhomb = renderRhomb(curr);
+                                        if (curr.vertices[0][1] < 5) {
+                                            combine.Add(new CombineInstance(){
+                                                mesh = currRhomb.GetComponent<MeshFilter>().sharedMesh,
+                                                transform = currRhomb.GetComponent<MeshFilter>().transform.localToWorldMatrix
+                                            });
+                                        }
                                         Destroy(currRhomb);
                                     }
                                 }   
@@ -326,27 +366,27 @@ public class PenroseGenerator : MonoBehaviour
         }
     }
 
-    GameObject renderRhomb(Vector3[] vertices, Material material, Tile curr) {
+    GameObject renderRhomb(Tile curr) {
         // MeshFilter meshFilter = GetComponent<MeshFilter>();
         Mesh mesh = new Mesh();
         // meshFilter.mesh = mesh;
-        mesh.vertices = vertices;
+        mesh.vertices = curr.vertices;
 
         // calc center of rhomb
         Vector3 center = new Vector3(0, 0, 0);
         for (int i = 0; i < 8; i++) {
-            center += vertices[i];
+            center += curr.vertices[i];
         }
         center /= 8;
 
         // testing if flipped
         bool testflip = false;
 
-        Vector3 edge1 = vertices[1] - vertices[0];
-        Vector3 edge2 = vertices[5] - vertices[0];
+        Vector3 edge1 = curr.vertices[1] - curr.vertices[0];
+        Vector3 edge2 = curr.vertices[5] - curr.vertices[0];
         Vector3 normal_1 = Vector3.Cross(edge1, edge2).normalized;
 
-        Vector3 dirToCenter = center - vertices[0];
+        Vector3 dirToCenter = center - curr.vertices[0];
 
         float dotProduct = Vector3.Dot(normal_1, dirToCenter);
 
@@ -401,15 +441,18 @@ public class PenroseGenerator : MonoBehaviour
         };
 
         for (int i = 0; i < triangles.Length; i+=6 ) {
-            Vector3 key = vertices[triangles[i]] + vertices[triangles[i+1]] + vertices[triangles[i+2]] + vertices[triangles[i+5]];
+            Vector3 key = RoundToNearestHundredth(curr.vertices[triangles[i]] + curr.vertices[triangles[i+1]] + curr.vertices[triangles[i+2]] + curr.vertices[triangles[i+5]]);
             if (faceMap.ContainsKey(key)){
                 if (faceMap[key].Item2 != null) {
-                    Debug.Log("MORE THAN 2 FACES, MUST BE AN ERROR");
+                    // quick and dirty, because this same func is used for add preview, but shouldn't add to map in that case.
+                    // Debug.Log("MORE THAN 2 FACES, MUST BE AN ERROR");
                 } else {
                     faceMap[key] = (faceMap[key].Item1, curr);
+                    // Debug.Log("adding second");
                 }
             } else {
                 faceMap.Add(key, (curr, null));
+
             }
         }
 
@@ -427,16 +470,16 @@ public class PenroseGenerator : MonoBehaviour
         MeshRenderer meshRenderer = terrainMesh.AddComponent<MeshRenderer>();
 
         // meshCollider.sharedMesh = mesh;
-        meshRenderer.material = material;
+        // meshRenderer.material = curr.material;
 
         // Set the mesh and material properties
         meshFilter.mesh = mesh;
-        meshRenderer.material = material;
+        meshRenderer.material = curr.material;
 
         // Set the parent of the mesh object to the current object
         // terrainMesh.transform.SetParent(loadedChunk.transform);
         
-        for (int i = 0; i < vertices.Length; i++) {
+        for (int i = 0; i < curr.vertices.Length; i++) {
             // Instantiate(spherePrefab, vertices[i], Quaternion.identity);
         }
 
@@ -532,5 +575,13 @@ public class PenroseGenerator : MonoBehaviour
 
         lineRenderer.SetPosition(15, vertices[4]);
     }
-
+    Vector3 RoundToNearestHundredth(Vector3 vector)
+    {
+        // return vector;
+        return new Vector3(
+            (float)Mathf.Round(vector.x * 100) / 100,
+            (float)Mathf.Round(vector.y * 100) / 100,
+            (float)Mathf.Round(vector.z * 100) / 100
+        );
+    }
 }
