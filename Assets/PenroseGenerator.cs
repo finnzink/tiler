@@ -13,7 +13,7 @@ public class Tile {
     public Dictionary<Vector3,int> tris_in_mesh; 
     public bool filled;
 
-    public Tile(Vector3 point, int[,] k, Vector3[] vertices, Material material, int pos) {
+    public Tile(Vector3 point, int[,] k, Vector3[] vertices, Material material, int pos, Dictionary<Vector3,int> tris_in_mesh, bool filled) {
         this.point = point;
         this.k = k;
         this.vertices = vertices;
@@ -139,9 +139,11 @@ public class PenroseGenerator : MonoBehaviour
 
         // Vector3 offset = -.2f * playerCamera.transform.forward; 
 
-        Vector3 p0 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 0]];
-        Vector3 p1 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 1]];
-        Vector3 p2 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 2]];
+        Mesh m = meshCollider.sharedMesh;
+
+        Vector3 p0 = m.vertices[m.triangles[closestHit.triangleIndex * 3 + 0]];
+        Vector3 p1 = m.vertices[m.triangles[closestHit.triangleIndex * 3 + 1]];
+        Vector3 p2 = m.vertices[m.triangles[closestHit.triangleIndex * 3 + 2]];
 
         float d01 = Vector3.Distance(p0, p1);
         float d12 = Vector3.Distance(p1, p2);
@@ -336,7 +338,7 @@ public class PenroseGenerator : MonoBehaviour
                                         centroid = position[0];
                                     }
                                     
-                                    Tile curr = new Tile(intersection, starter_k, position, material, pos);
+                                    Tile curr = new Tile(intersection, starter_k, position, material, pos, null, false);
                                     tiles.Add(curr);
 
                                     if (curr.vertices[0][0] < COI[0] || curr.vertices[0][0] > COI[0] + fofilter
@@ -411,6 +413,7 @@ public class PenroseGenerator : MonoBehaviour
         }
     }
 
+    // this method should really only 1. flip vertices 2. add to faceMap 3. call addRhomb
     GameObject renderRhomb(Tile curr) {
         // MeshFilter meshFilter = GetComponent<MeshFilter>();
         Mesh mesh = new Mesh();
@@ -440,6 +443,18 @@ public class PenroseGenerator : MonoBehaviour
             // Debug.Log("Normals are pointing towards each other");
             testflip = true;
             // Instantiate(spherePrefab2, center, Quaternion.identity);
+
+            Vector3[] tempVerts = mesh.vertices;
+
+            // flip the vertices 
+            Vector3 temp0 = mesh.vertices[0];
+            Vector3 temp1 = mesh.vertices[1];
+            tempVerts[0] = mesh.vertices[6];
+            tempVerts[1] = mesh.vertices[7];
+            tempVerts[6] = temp0;
+            tempVerts[7] = temp1;
+
+            mesh.vertices = tempVerts;
         }
 
 
@@ -464,35 +479,7 @@ public class PenroseGenerator : MonoBehaviour
             3, 6, 7,
         };
 
-        int[] triangles2 = new int[]
-        {
-            2, 0, 1, // 0, 1, 2, 3
-            2, 1, 3,
-
-            1, 0, 5, // 0, 1, 4, 5
-            5, 0, 4,
-
-            4, 0, 6, // 0, 2, 4, 6
-            6, 0, 2,
-
-            5, 6, 7, // 4, 5, 6, 7
-            6, 5, 4,
-
-            3, 1, 7, // 1, 3, 5, 7
-            7, 1, 5,
-            
-            6, 2, 3, // 2, 3, 6, 7
-            6, 3, 7,
-        };
-
-        // this should be changed to modify the Tile's vertices directly. 
-        // From there the triangles can be generated elsewhere without checking.
-        if (testflip) {
-            mesh.triangles = triangles2;
-        }
-        else {
-            mesh.triangles = triangles;
-        }
+        mesh.triangles = triangles;
 
         mesh.RecalculateNormals();
 
