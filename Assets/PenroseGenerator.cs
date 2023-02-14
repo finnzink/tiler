@@ -7,12 +7,14 @@ public class Tile {
     public Vector3[] vertices;
     public int[,] k;
     public Material material;
+    public int pos;
 
-    public Tile(Vector3 point, int[,] k, Vector3[] vertices, Material material) {
+    public Tile(Vector3 point, int[,] k, Vector3[] vertices, Material material, int pos) {
         this.point = point;
         this.k = k;
         this.vertices = vertices;
         this.material = material;
+        this.pos = pos;
     }
 }
 
@@ -25,6 +27,8 @@ public class PenroseGenerator : MonoBehaviour
 {
     public Dictionary<Vector3, ((Tile, Tile), (Vector3, Vector3))> faceMap = new Dictionary<Vector3, ((Tile, Tile), (Vector3, Vector3))>();
     public List<Vector3> icos = new List<Vector3>();
+    public List<Tile> tiles = new List<Tile>();
+    public GameObject terrainObj;
     public GameObject spherePrefab;
     public GameObject spherePrefab2;
     // public Material material;
@@ -128,7 +132,7 @@ public class PenroseGenerator : MonoBehaviour
             return;
         }
 
-        Vector3 offset = -.2f * playerCamera.transform.forward; 
+        // Vector3 offset = -.2f * playerCamera.transform.forward; 
 
         Vector3 p0 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 0]];
         Vector3 p1 = meshCollider.sharedMesh.vertices[meshCollider.sharedMesh.triangles[closestHit.triangleIndex * 3 + 1]];
@@ -168,8 +172,8 @@ public class PenroseGenerator : MonoBehaviour
 
         if (faceMap[key].Item1.Item1 == null || faceMap[key].Item1.Item2 == null) { return;}// no neighbor
 
-        Tile t = new Tile(faceMap[key].Item1.Item1.point, faceMap[key].Item1.Item1.k, faceMap[key].Item1.Item1.vertices, faceMap[key].Item1.Item1.material);
-        Tile t2 = new Tile(faceMap[key].Item1.Item2.point, faceMap[key].Item1.Item2.k, faceMap[key].Item1.Item2.vertices, faceMap[key].Item1.Item2.material);
+        Tile t = faceMap[key].Item1.Item1;
+        Tile t2 = faceMap[key].Item1.Item2;
 
         if (Vector3.Dot(playerCamera.transform.forward, faceMap[key].Item2.Item1) < 0) {
             // flip t and t2
@@ -181,13 +185,43 @@ public class PenroseGenerator : MonoBehaviour
         GameObject tempObj = renderRhomb(t);
         GameObject tempObj2 = renderRhomb(t2);
 
+        if (Input.GetMouseButtonDown(0)) {
+            Debug.Log("clicked");
+            int index = t2.pos *36;
+            Debug.Log("INDEX: " + index);
+            Mesh mesh = terrainObj.GetComponent<MeshFilter>().mesh;
+            int[] triangles = mesh.triangles;
+            int[] newTriangles = new int[triangles.Length - (3*12)];
+            int j = 0;
+            for (int i = 0; i < triangles.Length; i += (3*12)) {
+                // Debug.Log("i:" + i);
+                if (i != index ) {
+                    for (int k = 0; k < (3*12); k++) {
+                        newTriangles[j] = triangles[i + k];
+                        j++;  
+                    }
+                }
+            }
+            mesh.triangles = newTriangles;
+            // fix tile pos values from list
+
+            // TODO NEXT!!!
+        
+            // tiles;
+        }
+
+        if (Input.GetMouseButtonDown(1)) {
+            Debug.Log("clicked2");
+            int index = t2.pos;
+        }
+
         MeshFilter triangleMeshFilter = triangleObj.GetComponent<MeshFilter>();
         MeshFilter tempMeshFilter = tempObj.GetComponent<MeshFilter>();
-        triangleMeshFilter.sharedMesh = tempMeshFilter.sharedMesh;
+        // triangleMeshFilter.sharedMesh = tempMeshFilter.sharedMesh;
 
         MeshFilter triangleMeshFilter2 = triangleObj2.GetComponent<MeshFilter>();
         MeshFilter tempMeshFilter2 = tempObj2.GetComponent<MeshFilter>();
-        triangleMeshFilter2.sharedMesh = tempMeshFilter2.sharedMesh;
+        // triangleMeshFilter2.sharedMesh = tempMeshFilter2.sharedMesh;
 
         Destroy(tempObj);
         Destroy(tempObj2);
@@ -198,6 +232,8 @@ public class PenroseGenerator : MonoBehaviour
         // GameObject toDestroy = loadedChunk; 
         // loadedChunk = new GameObject();
         // Destroy(toDestroy);
+
+        int pos = 0;
         
         Debug.Log("GENERATING NEW CHUNK" + string.Join(",", chunk));
         Debug.Log("RANDS: " + string.Join(",", randomNumbers));
@@ -226,8 +262,6 @@ public class PenroseGenerator : MonoBehaviour
 
          
         List<Vector3> points = new List<Vector3>();
-
-        List<Tile> tiles = new List<Tile>();
 
         Vector3 centroid = new Vector3(0,0,0);
 
@@ -297,7 +331,7 @@ public class PenroseGenerator : MonoBehaviour
                                         centroid = position[0];
                                     }
                                     
-                                    Tile curr = new Tile(intersection, starter_k, position, material);
+                                    Tile curr = new Tile(intersection, starter_k, position, material, pos);
                                     tiles.Add(curr);
 
                                     if (curr.vertices[0][0] < COI[0] || curr.vertices[0][0] > COI[0] + fofilter
@@ -307,11 +341,15 @@ public class PenroseGenerator : MonoBehaviour
                                     }
                                     if (showRhombs) {
                                         GameObject currRhomb = renderRhomb(curr);
+
+                                        // THIS SHOULD BE REPLACED WITH MORE COMPLEX TERRAIN GEN :)
                                         if (curr.vertices[0][1] < 5) {
                                             combine.Add(new CombineInstance(){
                                                 mesh = currRhomb.GetComponent<MeshFilter>().sharedMesh,
                                                 transform = currRhomb.GetComponent<MeshFilter>().transform.localToWorldMatrix
                                             });
+                                            pos++;
+
                                         }
                                         Destroy(currRhomb);
                                     }
@@ -333,7 +371,7 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
-        GameObject terrainObj = new GameObject();
+        terrainObj = new GameObject();
         Mesh combinedMesh = new Mesh();
         combinedMesh.CombineMeshes(combine.ToArray(), true, true);
 
