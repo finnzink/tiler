@@ -23,7 +23,7 @@ public class Tile {
 
 public class PenroseGenerator : MonoBehaviour
 {
-    public Dictionary<Vector3, (Tile, Tile)> faceMap = new Dictionary<Vector3, (Tile, Tile)>();
+    public Dictionary<Vector3, ((Tile, Tile), (Vector3, Vector3))> faceMap = new Dictionary<Vector3, ((Tile, Tile), (Vector3, Vector3))>();
     public List<Vector3> icos = new List<Vector3>();
     public GameObject spherePrefab;
     public GameObject spherePrefab2;
@@ -49,10 +49,13 @@ public class PenroseGenerator : MonoBehaviour
         Material red_material = new Material(Shader.Find("Standard"));
         red_material.color = Color.red;
 
+        Material green_material = new Material(Shader.Find("Standard"));
+        green_material.color = Color.green;
+
         triangleObj = new GameObject();
         MeshFilter triMeshFilter = triangleObj.AddComponent<MeshFilter>();
         MeshRenderer triMeshRenderer = triangleObj.AddComponent<MeshRenderer>();
-        triMeshRenderer.material = red_material;
+        triMeshRenderer.material = green_material;
 
         triangleObj2 = new GameObject();
         MeshFilter tri2MeshFilter = triangleObj2.AddComponent<MeshFilter>();
@@ -163,10 +166,17 @@ public class PenroseGenerator : MonoBehaviour
             Debug.Log("FLOAT ERROR"); 
         }
 
-        if (faceMap[key].Item1 == null || faceMap[key].Item2 == null) { return;}// no neighbor
+        if (faceMap[key].Item1.Item1 == null || faceMap[key].Item1.Item2 == null) { return;}// no neighbor
 
-        Tile t = new Tile(faceMap[key].Item1.point, faceMap[key].Item1.k, faceMap[key].Item1.vertices, faceMap[key].Item1.material);
-        Tile t2 = new Tile(faceMap[key].Item2.point, faceMap[key].Item2.k, faceMap[key].Item2.vertices, faceMap[key].Item2.material);
+        Tile t = new Tile(faceMap[key].Item1.Item1.point, faceMap[key].Item1.Item1.k, faceMap[key].Item1.Item1.vertices, faceMap[key].Item1.Item1.material);
+        Tile t2 = new Tile(faceMap[key].Item1.Item2.point, faceMap[key].Item1.Item2.k, faceMap[key].Item1.Item2.vertices, faceMap[key].Item1.Item2.material);
+
+        if (Vector3.Dot(playerCamera.transform.forward, faceMap[key].Item2.Item1) < 0) {
+            // flip t and t2
+            Tile temp = t; 
+            t = t2;
+            t2 = temp;
+        }
 
         GameObject tempObj = renderRhomb(t);
         GameObject tempObj2 = renderRhomb(t2);
@@ -182,14 +192,6 @@ public class PenroseGenerator : MonoBehaviour
         Destroy(tempObj);
         Destroy(tempObj2);
 
-        // Mesh triangleMesh = new Mesh();
-        // triangleMesh.vertices = new Vector3[] { p0 + offset, p1 + offset, p2 + offset, finalFlip + offset, toFlip2 + offset, toFlip1 + offset};
-        // triangleMesh.triangles = new int[] { 0, 1, 2, 3, 4, 5, 4, 3, 5 };
-
-        // triangleMesh.RecalculateNormals();
-
-        // MeshFilter triangleMeshFilter = triangleObj.GetComponent<MeshFilter>();
-        // triangleMeshFilter.sharedMesh = triangleMesh;
     }
 
     public void genChunk(Vector3 chunk) {
@@ -440,22 +442,6 @@ public class PenroseGenerator : MonoBehaviour
             6, 3, 7,
         };
 
-        for (int i = 0; i < triangles.Length; i+=6 ) {
-            Vector3 key = RoundToNearestHundredth(curr.vertices[triangles[i]] + curr.vertices[triangles[i+1]] + curr.vertices[triangles[i+2]] + curr.vertices[triangles[i+5]]);
-            if (faceMap.ContainsKey(key)){
-                if (faceMap[key].Item2 != null) {
-                    // quick and dirty, because this same func is used for add preview, but shouldn't add to map in that case.
-                    // Debug.Log("MORE THAN 2 FACES, MUST BE AN ERROR");
-                } else {
-                    faceMap[key] = (faceMap[key].Item1, curr);
-                    // Debug.Log("adding second");
-                }
-            } else {
-                faceMap.Add(key, (curr, null));
-
-            }
-        }
-
         if (testflip) {
             mesh.triangles = triangles2;
         }
@@ -464,6 +450,28 @@ public class PenroseGenerator : MonoBehaviour
         }
 
         mesh.RecalculateNormals();
+
+        for (int i = 0; i < mesh.triangles.Length; i+=6 ) {
+            Vector3 key = RoundToNearestHundredth(mesh.vertices[mesh.triangles[i]] + mesh.vertices[mesh.triangles[i+1]] + mesh.vertices[mesh.triangles[i+2]] + mesh.vertices[mesh.triangles[i+5]]);
+
+            Vector3 ab = mesh.vertices[mesh.triangles[i+1]] - mesh.vertices[mesh.triangles[i]];
+            Vector3 ac = mesh.vertices[mesh.triangles[i+2]] - mesh.vertices[mesh.triangles[i]];
+            // return Vector3.Cross(ab, ac).normalized;
+
+            if (faceMap.ContainsKey(key)){
+                if (faceMap[key].Item1.Item2 != null) {
+                    // quick and dirty, because this same func is used for add preview, but shouldn't add to map in that case.
+                    // Debug.Log("MORE THAN 2 FACES, MUST BE AN ERROR");
+                } else {
+                    faceMap[key] = ((faceMap[key].Item1.Item1, curr), (faceMap[key].Item2.Item1, Vector3.Cross(ab, ac).normalized));
+                    // Debug.Log("adding second");
+                }
+            } else {
+                faceMap.Add(key, ((curr, null), (Vector3.Cross(ab, ac).normalized, new Vector3())));
+
+            }
+        }
+
 
         GameObject terrainMesh = new GameObject();
         MeshFilter meshFilter = terrainMesh.AddComponent<MeshFilter>();
