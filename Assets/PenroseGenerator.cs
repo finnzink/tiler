@@ -19,6 +19,7 @@ public class Tile {
         this.vertices = vertices;
         this.material = material;
         this.pos = pos;
+        this.tris_in_mesh = tris_in_mesh;
     }
 }
 
@@ -47,11 +48,20 @@ public class PenroseGenerator : MonoBehaviour
     public bool debugPlanes;
     public bool showRhombs;
 
+    public Vector3[] globalVertices;
+    public Vector3[] globalNormals;
+    public int currVertex;
+
     public Material white_material;
 
     // Start is called before the first frame update
     void Start()
     {
+
+        globalVertices= new Vector3[7000];
+        globalNormals= new Vector3[7000];
+        currVertex = 0;
+
         white_material = new Material(Shader.Find("Standard"));
         white_material.color = Color.white;
 
@@ -374,7 +384,12 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
-        
+        terrainObj.GetComponent<MeshFilter>().sharedMesh.vertices = globalVertices;
+        terrainObj.GetComponent<MeshFilter>().sharedMesh.normals = globalNormals;
+
+        foreach (Tile tile in tiles) {
+            addRhombToMesh(tile);
+        }
 
         renderChunk(chunk);
 
@@ -444,7 +459,7 @@ public class PenroseGenerator : MonoBehaviour
         }
 
         // double fofilter = 8;
-        double fofilter = 4;
+        double fofilter = 8;
         Vector3 COI = chunk;
 
         if (center[0] < COI[0] || center[0] > COI[0] + fofilter
@@ -474,7 +489,17 @@ public class PenroseGenerator : MonoBehaviour
             3, 6, 7,
         };
 
-        Tile curr = new Tile(new Vector3(0,0,0), null, mesh.vertices, null, 0, null, false);
+        mesh.triangles = triangles;
+        mesh.RecalculateNormals();
+
+        // pos needs to be
+        Tile curr = new Tile(new Vector3(0,0,0), null, mesh.vertices, null, 0, new Dictionary<Vector3,int>(), false);
+        double fofofilter = 4;
+        if (center[0] < COI[0] + fofofilter && center[0] > COI[0] 
+            && center[1] < COI[1] + fofofilter && center[1] > COI[1]
+            && center[2] < COI[2] + fofofilter && center[2] > COI[2]) {
+            tiles.Add(curr);
+        }
 
         for (int i = 0; i < triangles.Length; i+=6 ) {
             Vector3 key = RoundToNearestHundredth(mesh.vertices[triangles[i]] + mesh.vertices[triangles[i+1]] + mesh.vertices[triangles[i+2]] + mesh.vertices[triangles[i+5]]);
@@ -496,9 +521,12 @@ public class PenroseGenerator : MonoBehaviour
 
             }
         }
-
-        // Assign the combined mesh to the terrain object
-        addRhombToMesh(curr);
+        for (int i = 0; i < 8; i++) {
+            globalVertices[(currVertex*8) + i] = mesh.vertices[i];
+            globalNormals[(currVertex*8) + i] = mesh.normals[i];
+        }
+        curr.pos = currVertex; 
+        currVertex += 1; 
     }
 
     // for adding tiles, how to know vertices index?
@@ -506,7 +534,7 @@ public class PenroseGenerator : MonoBehaviour
     // --> from there, the Tile object can store the index of its vertices in the mesh, rather than in an array in the object itself
 
     void addRhombToMesh(Tile toAdd) {
-        // check each of the six faces to see if the corresponding neighbor tiles are sharing an face that is in the mesh (using faceMap and Tile.tris_in_mesh)
+        // check each of the six faces to see if the corresponding neighbor tiles are sharing a face that is in the mesh (using faceMap and Tile.tris_in_mesh)
         // if so, that means that face needs to be deleted from the mesh (so mesh's triangles assoc with the face are modified to 0,0,0 and freeTriangles is updated)
         // if not, that means the face should be added to the mesh (freeTriangles checked -> if empty increase triangles array by 3*2*8 and freeTriangles by 8, otherwise add to triangles directly)
         int[] triangles = new int[]
@@ -530,46 +558,50 @@ public class PenroseGenerator : MonoBehaviour
             3, 6, 7,
         };
 
-        Mesh mesh = new Mesh();
-        mesh.vertices = toAdd.vertices;
-        mesh.triangles = triangles;
-        mesh.RecalculateNormals();
+        List<int> pretrianglesToAdd = new List<int>();
+
+        // check neighbor tiles
+        for (int i = 0; i < triangles.Length; i+=6) {
+            Vector3 key = RoundToNearestHundredth(toAdd.vertices[triangles[i]] + toAdd.vertices[triangles[i+1]] + toAdd.vertices[triangles[i+2]] + toAdd.vertices[triangles[i+5]]);
+            Tile neighbor = (faceMap[key].Item1.Item1 == toAdd) ? faceMap[key].Item1.Item2 : faceMap[key].Item1.Item1;
+
+            // if (neighbor == null) {Debug.Log("neighbor null");}
+            // if (neighbor.tris_in_mesh == null) { Debug.Log("tris in mesh null");}
+
+            if (neighbor != null && neighbor.tris_in_mesh.ContainsKey(key)) {
+                // Tile.tris_in_mesh[key] needs to be deleted.
+            } else {
+                // update Tile.tris_in_mesh, and add it to the mesh.
+                toAdd.tris_in_mesh.Add(key, i);
+                for (int h = 0; h < 6; h++) {
+                    pretrianglesToAdd.Add(triangles[i+h]);
+                }
+            }
+        }
+        int[] trianglesToAdd = pretrianglesToAdd.ToArray();
 
         Mesh currMesh = terrainObj.GetComponent<MeshFilter>().sharedMesh;
 
-        Vector3[] newVertices = new Vector3[currMesh.vertices.Length + mesh.vertices.Length];
-        Vector3[] newNormals = new Vector3[currMesh.normals.Length + mesh.normals.Length];
-        int[] newTriangles = new int[currMesh.triangles.Length + triangles.Length];
+        int[] newTriangles = new int[currMesh.triangles.Length + trianglesToAdd.Length];
 
         int j =0;
         for (int i = 0; i < newTriangles.Length; i++) {
             if (i < currMesh.triangles.Length) {
                 newTriangles[i] = currMesh.triangles[i];
             } else {
-                newTriangles[i] = triangles[j] + currMesh.vertices.Length;
+                newTriangles[i] = trianglesToAdd[j] + (toAdd.pos * 8);
+                // Debug.Log(toAdd.pos);
                 j++;
             }
         }
 
-        j = 0;
-        for (int i = 0; i < newVertices.Length; i++) {
-            if (i < currMesh.vertices.Length) {
-                newVertices[i] = currMesh.vertices[i];
-                newNormals[i] = currMesh.normals[i];
-            } else {
-                newVertices[i] = mesh.vertices[j];
-                newNormals[i] = mesh.normals[j];
-                j++;
-            }
+        for (int i = 0; i < 8; i++) {
+            Debug.Log(toAdd.vertices[i]);
+            Debug.Log(globalVertices[i + (toAdd.pos * 8)]);
+            Debug.Log(currMesh.vertices[i + (toAdd.pos * 8)]);
         }
 
-        Mesh newMesh = new Mesh();
-        newMesh.vertices = newVertices;
-        newMesh.normals = newNormals;
-        newMesh.triangles = newTriangles;
-        
-        terrainObj.GetComponent<MeshFilter>().sharedMesh = newMesh;
-
+        terrainObj.GetComponent<MeshFilter>().sharedMesh.triangles = newTriangles;
     }
 
     void deleteRhombFromMesh(Tile toDelete) {
