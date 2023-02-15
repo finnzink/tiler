@@ -557,22 +557,29 @@ public class PenroseGenerator : MonoBehaviour
             2, 6, 3, // 2, 3, 6, 7
             3, 6, 7,
         };
-
+        
+        Mesh currMesh = terrainObj.GetComponent<MeshFilter>().sharedMesh;
         List<int> pretrianglesToAdd = new List<int>();
+        List<int> trianglesToDel = new List<int>();
 
         // check neighbor tiles
         for (int i = 0; i < triangles.Length; i+=6) {
             Vector3 key = RoundToNearestHundredth(toAdd.vertices[triangles[i]] + toAdd.vertices[triangles[i+1]] + toAdd.vertices[triangles[i+2]] + toAdd.vertices[triangles[i+5]]);
             Tile neighbor = (faceMap[key].Item1.Item1 == toAdd) ? faceMap[key].Item1.Item2 : faceMap[key].Item1.Item1;
 
-            // if (neighbor == null) {Debug.Log("neighbor null");}
+            // if (neighbor.tris_in_mesh.ContainsKey(key)) {}
             // if (neighbor.tris_in_mesh == null) { Debug.Log("tris in mesh null");}
 
             if (neighbor != null && neighbor.tris_in_mesh.ContainsKey(key)) {
+                Debug.Log("contains key");
                 // Tile.tris_in_mesh[key] needs to be deleted.
+                for (int h = 0; h < 6; h++) {
+                    trianglesToDel.Add(neighbor.tris_in_mesh[key] + h);
+                }
+                neighbor.tris_in_mesh.Remove(key);
             } else {
                 // update Tile.tris_in_mesh, and add it to the mesh.
-                toAdd.tris_in_mesh.Add(key, i);
+                toAdd.tris_in_mesh.Add(key, pretrianglesToAdd.Count + currMesh.triangles.Length);
                 for (int h = 0; h < 6; h++) {
                     pretrianglesToAdd.Add(triangles[i+h]);
                 }
@@ -580,10 +587,9 @@ public class PenroseGenerator : MonoBehaviour
         }
         int[] trianglesToAdd = pretrianglesToAdd.ToArray();
 
-        Mesh currMesh = terrainObj.GetComponent<MeshFilter>().sharedMesh;
-
         int[] newTriangles = new int[currMesh.triangles.Length + trianglesToAdd.Length];
 
+        // add triangles
         int j =0;
         for (int i = 0; i < newTriangles.Length; i++) {
             if (i < currMesh.triangles.Length) {
@@ -595,11 +601,16 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
-        for (int i = 0; i < 8; i++) {
-            Debug.Log(toAdd.vertices[i]);
-            Debug.Log(globalVertices[i + (toAdd.pos * 8)]);
-            Debug.Log(currMesh.vertices[i + (toAdd.pos * 8)]);
+        // delete triangles, replace with 0's
+        for (int i = 0; i < trianglesToDel.Count; i++) {
+            newTriangles[trianglesToDel[i]] = 0;
         }
+
+        // for (int i = 0; i < 8; i++) {
+        //     Debug.Log(toAdd.vertices[i]);
+        //     Debug.Log(globalVertices[i + (toAdd.pos * 8)]);
+        //     Debug.Log(currMesh.vertices[i + (toAdd.pos * 8)]);
+        // }
 
         terrainObj.GetComponent<MeshFilter>().sharedMesh.triangles = newTriangles;
     }
