@@ -447,12 +447,11 @@ public class PenroseGenerator : MonoBehaviour
         double fofilter = 4;
         Vector3 COI = chunk;
 
-        if (mesh.vertices[0][0] < COI[0] || mesh.vertices[0][0] > COI[0] + fofilter
-            || mesh.vertices[0][1] < COI[1] || mesh.vertices[0][1] > COI[1] + fofilter
-            || mesh.vertices[0][2] < COI[2] || mesh.vertices[0][2] > COI[2] + fofilter) {
+        if (center[0] < COI[0] || center[0] > COI[0] + fofilter
+            || center[1] < COI[1] || center[1] > COI[1] + fofilter
+            || center[2] < COI[2] || center[2] > COI[2] + fofilter) {
             return;
         }
-
 
         int[] triangles = new int[]
         {
@@ -475,17 +474,13 @@ public class PenroseGenerator : MonoBehaviour
             3, 6, 7,
         };
 
-        mesh.triangles = triangles;
-
-        mesh.RecalculateNormals();
-
         Tile curr = new Tile(new Vector3(0,0,0), null, mesh.vertices, null, 0, null, false);
 
-        for (int i = 0; i < mesh.triangles.Length; i+=6 ) {
-            Vector3 key = RoundToNearestHundredth(mesh.vertices[mesh.triangles[i]] + mesh.vertices[mesh.triangles[i+1]] + mesh.vertices[mesh.triangles[i+2]] + mesh.vertices[mesh.triangles[i+5]]);
+        for (int i = 0; i < triangles.Length; i+=6 ) {
+            Vector3 key = RoundToNearestHundredth(mesh.vertices[triangles[i]] + mesh.vertices[triangles[i+1]] + mesh.vertices[triangles[i+2]] + mesh.vertices[triangles[i+5]]);
 
-            Vector3 ab = mesh.vertices[mesh.triangles[i+1]] - mesh.vertices[mesh.triangles[i]];
-            Vector3 ac = mesh.vertices[mesh.triangles[i+2]] - mesh.vertices[mesh.triangles[i]];
+            Vector3 ab = mesh.vertices[triangles[i+1]] - mesh.vertices[triangles[i]];
+            Vector3 ac = mesh.vertices[triangles[i+2]] - mesh.vertices[triangles[i]];
             // return Vector3.Cross(ab, ac).normalized;
 
             if (faceMap.ContainsKey(key)){
@@ -503,10 +498,46 @@ public class PenroseGenerator : MonoBehaviour
         }
 
         // Assign the combined mesh to the terrain object
+        addRhombToMesh(curr);
+    }
+
+    // for adding tiles, how to know vertices index?
+    // --> vertices should be added by default to the mesh.vertices as soon as the tile is generated even if tile isn't filled.
+    // --> from there, the Tile object can store the index of its vertices in the mesh, rather than in an array in the object itself
+
+    void addRhombToMesh(Tile toAdd) {
+        // check each of the six faces to see if the corresponding neighbor tiles are sharing an face that is in the mesh (using faceMap and Tile.tris_in_mesh)
+        // if so, that means that face needs to be deleted from the mesh (so mesh's triangles assoc with the face are modified to 0,0,0 and freeTriangles is updated)
+        // if not, that means the face should be added to the mesh (freeTriangles checked -> if empty increase triangles array by 3*2*8 and freeTriangles by 8, otherwise add to triangles directly)
+        int[] triangles = new int[]
+        {
+            0, 2, 1, // 0, 1, 2, 3
+            1, 2, 3,
+
+            0, 1, 5, // 0, 1, 4, 5
+            0, 5, 4,
+
+            0, 4, 6, // 0, 2, 4, 6
+            0, 6, 2,
+
+            6, 5, 7, // 4, 5, 6, 7
+            5, 6, 4,
+
+            1, 3, 7, // 1, 3, 5, 7
+            1, 7, 5,
+            
+            2, 6, 3, // 2, 3, 6, 7
+            3, 6, 7,
+        };
+
+        Mesh mesh = new Mesh();
+        mesh.vertices = toAdd.vertices;
+        mesh.triangles = triangles;
+        mesh.RecalculateNormals();
 
         Mesh currMesh = terrainObj.GetComponent<MeshFilter>().sharedMesh;
 
-        Vector3[] newVertices = new Vector3[currMesh.vertices.Length + vertices.Length];
+        Vector3[] newVertices = new Vector3[currMesh.vertices.Length + mesh.vertices.Length];
         Vector3[] newNormals = new Vector3[currMesh.normals.Length + mesh.normals.Length];
         int[] newTriangles = new int[currMesh.triangles.Length + triangles.Length];
 
@@ -520,7 +551,7 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
-        j =0;
+        j = 0;
         for (int i = 0; i < newVertices.Length; i++) {
             if (i < currMesh.vertices.Length) {
                 newVertices[i] = currMesh.vertices[i];
@@ -539,16 +570,6 @@ public class PenroseGenerator : MonoBehaviour
         
         terrainObj.GetComponent<MeshFilter>().sharedMesh = newMesh;
 
-    }
-
-    // for adding tiles, how to know vertices index?
-    // --> vertices should be added by default to the mesh.vertices as soon as the tile is generated even if tile isn't filled.
-    // --> from there, the Tile object can store the index of its vertices in the mesh, rather than in an array in the object itself
-
-    void addRhombToMesh(Tile toAdd) {
-        // check each of the six faces to see if the corresponding neighbor tiles are sharing an face that is in the mesh (using faceMap and Tile.tris_in_mesh)
-        // if so, that means that face needs to be deleted from the mesh (so mesh's triangles assoc with the face are modified to 0,0,0 and freeTriangles is updated)
-        // if not, that means the face should be added to the mesh (freeTriangles checked -> if empty increase triangles array by 3*2*8 and freeTriangles by 8, otherwise add to triangles directly)
     }
 
     void deleteRhombFromMesh(Tile toDelete) {
