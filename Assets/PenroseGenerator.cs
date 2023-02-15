@@ -47,9 +47,26 @@ public class PenroseGenerator : MonoBehaviour
     public bool debugPlanes;
     public bool showRhombs;
 
+    public Material white_material;
+
     // Start is called before the first frame update
     void Start()
     {
+        white_material = new Material(Shader.Find("Standard"));
+        white_material.color = Color.white;
+
+        terrainObj = new GameObject("terrain");
+        Mesh combinedMesh = new Mesh();
+        // combinedMesh.CombineMeshes(combine.ToArray(), true, true);
+
+        MeshFilter meshFilter = terrainObj.AddComponent<MeshFilter>();
+        MeshRenderer meshRenderer = terrainObj.AddComponent<MeshRenderer>();
+        MeshCollider meshCollider = terrainObj.AddComponent<MeshCollider>();
+
+        meshCollider.sharedMesh = combinedMesh;
+        meshRenderer.material = white_material;
+        meshFilter.sharedMesh = combinedMesh;
+
         debugPlanes = false;
         showRhombs = true;
         loadedChunk.Add(new GameObject());
@@ -189,49 +206,49 @@ public class PenroseGenerator : MonoBehaviour
             t2 = temp;
         }
 
-        GameObject tempObj = renderRhomb(t);
-        GameObject tempObj2 = renderRhomb(t2);
+        // GameObject tempObj = renderRhomb(t);
+        // GameObject tempObj2 = renderRhomb(t2);
 
-        if (Input.GetMouseButtonDown(0)) {
-            Debug.Log("clicked");
-            int index = t2.pos *36;
-            Debug.Log("INDEX: " + index);
-            Mesh mesh = terrainObj.GetComponent<MeshFilter>().mesh;
-            int[] triangles = mesh.triangles;
-            int[] newTriangles = new int[triangles.Length - (3*12)];
-            int j = 0;
-            for (int i = 0; i < triangles.Length; i += (3*12)) {
-                // Debug.Log("i:" + i);
-                if (i != index ) {
-                    for (int k = 0; k < (3*12); k++) {
-                        newTriangles[j] = triangles[i + k];
-                        j++;  
-                    }
-                }
-            }
-            mesh.triangles = newTriangles;
-            // fix tile pos values from list
+        // if (Input.GetMouseButtonDown(0)) {
+        //     Debug.Log("clicked");
+        //     int index = t2.pos *36;
+        //     Debug.Log("INDEX: " + index);
+        //     Mesh mesh = terrainObj.GetComponent<MeshFilter>().mesh;
+        //     int[] triangles = mesh.triangles;
+        //     int[] newTriangles = new int[triangles.Length - (3*12)];
+        //     int j = 0;
+        //     for (int i = 0; i < triangles.Length; i += (3*12)) {
+        //         // Debug.Log("i:" + i);
+        //         if (i != index ) {
+        //             for (int k = 0; k < (3*12); k++) {
+        //                 newTriangles[j] = triangles[i + k];
+        //                 j++;  
+        //             }
+        //         }
+        //     }
+        //     mesh.triangles = newTriangles;
+        //     // fix tile pos values from list
 
-            // TODO NEXT!!!
+        //     // TODO NEXT!!!
         
-            // tiles;
-        }
+        //     // tiles;
+        // }
 
-        if (Input.GetMouseButtonDown(1)) {
-            Debug.Log("clicked2");
-            int index = t2.pos;
-        }
+        // if (Input.GetMouseButtonDown(1)) {
+        //     Debug.Log("clicked2");
+        //     int index = t2.pos;
+        // }
 
-        MeshFilter triangleMeshFilter = triangleObj.GetComponent<MeshFilter>();
-        MeshFilter tempMeshFilter = tempObj.GetComponent<MeshFilter>();
-        // triangleMeshFilter.sharedMesh = tempMeshFilter.sharedMesh;
+        // MeshFilter triangleMeshFilter = triangleObj.GetComponent<MeshFilter>();
+        // MeshFilter tempMeshFilter = tempObj.GetComponent<MeshFilter>();
+        // // triangleMeshFilter.sharedMesh = tempMeshFilter.sharedMesh;
 
-        MeshFilter triangleMeshFilter2 = triangleObj2.GetComponent<MeshFilter>();
-        MeshFilter tempMeshFilter2 = tempObj2.GetComponent<MeshFilter>();
-        // triangleMeshFilter2.sharedMesh = tempMeshFilter2.sharedMesh;
+        // MeshFilter triangleMeshFilter2 = triangleObj2.GetComponent<MeshFilter>();
+        // MeshFilter tempMeshFilter2 = tempObj2.GetComponent<MeshFilter>();
+        // // triangleMeshFilter2.sharedMesh = tempMeshFilter2.sharedMesh;
 
-        Destroy(tempObj);
-        Destroy(tempObj2);
+        // Destroy(tempObj);
+        // Destroy(tempObj2);
 
     }
 
@@ -275,8 +292,7 @@ public class PenroseGenerator : MonoBehaviour
         Material material = new Material(Shader.Find("Standard"));
         material.color = new Color(1 - ((chunk[0] ) / 20), 1-((chunk[1]) / 20), 1- ((chunk[2]) / 20), 1f);
 
-        double fofilter = 8;
-        Vector3 COI = chunk;
+
         // can change chunk to centroid in the below loop if you want to see the chunk's center of mass
 
         List<CombineInstance> combine = new List<CombineInstance>();
@@ -334,32 +350,12 @@ public class PenroseGenerator : MonoBehaviour
                                         }
                                     }
 
-                                    if (k == 4 && l == 4 && m == 4) {
-                                        centroid = position[0];
-                                    }
+                                    // if (k == 4 && l == 4 && m == 4) {
+                                    //     centroid = position[0];
+                                    // }
+
+                                    renderRhomb(position, chunk);
                                     
-                                    Tile curr = new Tile(intersection, starter_k, position, material, pos, null, false);
-                                    tiles.Add(curr);
-
-                                    if (curr.vertices[0][0] < COI[0] || curr.vertices[0][0] > COI[0] + fofilter
-                                        || curr.vertices[0][1] < COI[1] || curr.vertices[0][1] > COI[1] + fofilter
-                                        || curr.vertices[0][2] < COI[2] || curr.vertices[0][2] > COI[2] + fofilter) {
-                                        continue;
-                                    }
-                                    if (showRhombs) {
-                                        GameObject currRhomb = renderRhomb(curr);
-
-                                        // THIS SHOULD BE REPLACED WITH MORE COMPLEX TERRAIN GEN :)
-                                        if (curr.vertices[0][1] < 5) {
-                                            combine.Add(new CombineInstance(){
-                                                mesh = currRhomb.GetComponent<MeshFilter>().sharedMesh,
-                                                transform = currRhomb.GetComponent<MeshFilter>().transform.localToWorldMatrix
-                                            });
-                                            pos++;
-
-                                        }
-                                        Destroy(currRhomb);
-                                    }
                                 }   
                             }
                         }
@@ -378,17 +374,7 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
-        terrainObj = new GameObject();
-        Mesh combinedMesh = new Mesh();
-        combinedMesh.CombineMeshes(combine.ToArray(), true, true);
-
-        MeshFilter meshFilter = terrainObj.AddComponent<MeshFilter>();
-        MeshRenderer meshRenderer = terrainObj.AddComponent<MeshRenderer>();
-        MeshCollider meshCollider = terrainObj.AddComponent<MeshCollider>();
-
-        meshCollider.sharedMesh = combinedMesh;
-        meshRenderer.material = material;
-        meshFilter.sharedMesh = combinedMesh;
+        
 
         renderChunk(chunk);
 
@@ -414,27 +400,27 @@ public class PenroseGenerator : MonoBehaviour
     }
 
     // this method should really only 1. flip vertices 2. add to faceMap 3. call addRhomb
-    GameObject renderRhomb(Tile curr) {
+    void renderRhomb(Vector3[] vertices, Vector3 chunk) {
         // MeshFilter meshFilter = GetComponent<MeshFilter>();
         Mesh mesh = new Mesh();
         // meshFilter.mesh = mesh;
-        mesh.vertices = curr.vertices;
+        mesh.vertices = vertices;
 
         // calc center of rhomb
         Vector3 center = new Vector3(0, 0, 0);
         for (int i = 0; i < 8; i++) {
-            center += curr.vertices[i];
+            center += vertices[i];
         }
         center /= 8;
 
         // testing if flipped
         bool testflip = false;
 
-        Vector3 edge1 = curr.vertices[1] - curr.vertices[0];
-        Vector3 edge2 = curr.vertices[5] - curr.vertices[0];
+        Vector3 edge1 = vertices[1] - vertices[0];
+        Vector3 edge2 = vertices[5] - vertices[0];
         Vector3 normal_1 = Vector3.Cross(edge1, edge2).normalized;
 
-        Vector3 dirToCenter = center - curr.vertices[0];
+        Vector3 dirToCenter = center - vertices[0];
 
         float dotProduct = Vector3.Dot(normal_1, dirToCenter);
 
@@ -455,6 +441,16 @@ public class PenroseGenerator : MonoBehaviour
             tempVerts[7] = temp1;
 
             mesh.vertices = tempVerts;
+        }
+
+        // double fofilter = 8;
+        double fofilter = 4;
+        Vector3 COI = chunk;
+
+        if (mesh.vertices[0][0] < COI[0] || mesh.vertices[0][0] > COI[0] + fofilter
+            || mesh.vertices[0][1] < COI[1] || mesh.vertices[0][1] > COI[1] + fofilter
+            || mesh.vertices[0][2] < COI[2] || mesh.vertices[0][2] > COI[2] + fofilter) {
+            return;
         }
 
 
@@ -483,6 +479,8 @@ public class PenroseGenerator : MonoBehaviour
 
         mesh.RecalculateNormals();
 
+        Tile curr = new Tile(new Vector3(0,0,0), null, mesh.vertices, null, 0, null, false);
+
         for (int i = 0; i < mesh.triangles.Length; i+=6 ) {
             Vector3 key = RoundToNearestHundredth(mesh.vertices[mesh.triangles[i]] + mesh.vertices[mesh.triangles[i+1]] + mesh.vertices[mesh.triangles[i+2]] + mesh.vertices[mesh.triangles[i+5]]);
 
@@ -504,26 +502,42 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
+        // Assign the combined mesh to the terrain object
 
-        GameObject terrainMesh = new GameObject();
-        MeshFilter meshFilter = terrainMesh.AddComponent<MeshFilter>();
-        // MeshRenderer meshRenderer = terrainMesh.AddComponent<MeshRenderer>();
+        Mesh currMesh = terrainObj.GetComponent<MeshFilter>().sharedMesh;
 
-        // meshCollider.sharedMesh = mesh;
-        // meshRenderer.material = curr.material;
+        Vector3[] newVertices = new Vector3[currMesh.vertices.Length + vertices.Length];
+        Vector3[] newNormals = new Vector3[currMesh.normals.Length + mesh.normals.Length];
+        int[] newTriangles = new int[currMesh.triangles.Length + triangles.Length];
 
-        // Set the mesh and material properties
-        meshFilter.mesh = mesh;
-        // meshRenderer.material = curr.material;
-
-        // Set the parent of the mesh object to the current object
-        // terrainMesh.transform.SetParent(loadedChunk.transform);
-        
-        for (int i = 0; i < curr.vertices.Length; i++) {
-            // Instantiate(spherePrefab, vertices[i], Quaternion.identity);
+        int j =0;
+        for (int i = 0; i < newTriangles.Length; i++) {
+            if (i < currMesh.triangles.Length) {
+                newTriangles[i] = currMesh.triangles[i];
+            } else {
+                newTriangles[i] = triangles[j] + currMesh.vertices.Length;
+                j++;
+            }
         }
 
-        return terrainMesh;
+        j =0;
+        for (int i = 0; i < newVertices.Length; i++) {
+            if (i < currMesh.vertices.Length) {
+                newVertices[i] = currMesh.vertices[i];
+                newNormals[i] = currMesh.normals[i];
+            } else {
+                newVertices[i] = mesh.vertices[j];
+                newNormals[i] = mesh.normals[j];
+                j++;
+            }
+        }
+
+        Mesh newMesh = new Mesh();
+        newMesh.vertices = newVertices;
+        newMesh.normals = newNormals;
+        newMesh.triangles = newTriangles;
+        
+        terrainObj.GetComponent<MeshFilter>().sharedMesh = newMesh;
 
     }
 
