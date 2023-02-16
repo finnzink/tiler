@@ -58,13 +58,16 @@ public class PenroseGenerator : MonoBehaviour
     public int currVertex;
 
     public Material white_material;
+    public int num_chunks;
+    public int pos;
 
     // Start is called before the first frame update
     void Start()
     {
-
-        globalVertices= new Vector3[7000];
-        globalNormals= new Vector3[7000];
+        num_chunks = 2;
+        pos = 0;
+        globalVertices= new Vector3[7000*num_chunks];
+        globalNormals= new Vector3[7000*num_chunks];
         globalMesh = new Mesh();
         currVertex = 0;
 
@@ -132,13 +135,16 @@ public class PenroseGenerator : MonoBehaviour
 
         // Debug.Log(string.Join(", ", icos));
 
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 1; j++) {
                 genChunk(new Vector3(i*8, 0, j*8));
             }
         }
 
         
+        foreach (Tile tile in tiles) {
+            addRhombToMesh(tile);
+        }
         
         // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
 
@@ -225,34 +231,6 @@ public class PenroseGenerator : MonoBehaviour
             t2 = temp;
         }
 
-        // GameObject tempObj = addRhombToTiles(t);
-        // GameObject tempObj2 = addRhombToTiles(t2);
-
-        // if (Input.GetMouseButtonDown(0)) {
-        //     Debug.Log("clicked");
-        //     int index = t2.pos *36;
-        //     Debug.Log("INDEX: " + index);
-        //     Mesh mesh = terrainObj.GetComponent<MeshFilter>().mesh;
-        //     int[] triangles = mesh.triangles;
-        //     int[] newTriangles = new int[triangles.Length - (3*12)];
-        //     int j = 0;
-        //     for (int i = 0; i < triangles.Length; i += (3*12)) {
-        //         // Debug.Log("i:" + i);
-        //         if (i != index ) {
-        //             for (int k = 0; k < (3*12); k++) {
-        //                 newTriangles[j] = triangles[i + k];
-        //                 j++;  
-        //             }
-        //         }
-        //     }
-        //     mesh.triangles = newTriangles;
-        //     // fix tile pos values from list
-
-        //     // TODO NEXT!!!
-        
-        //     // tiles;
-        // }
-
         if (Input.GetMouseButtonDown(1)) {
             addRhombToMesh(t);
         }
@@ -260,26 +238,9 @@ public class PenroseGenerator : MonoBehaviour
             deleteRhombFromMesh(t2);
         }
 
-        // MeshFilter triangleMeshFilter = triangleObj.GetComponent<MeshFilter>();
-        // MeshFilter tempMeshFilter = tempObj.GetComponent<MeshFilter>();
-        // // triangleMeshFilter.sharedMesh = tempMeshFilter.sharedMesh;
-
-        // MeshFilter triangleMeshFilter2 = triangleObj2.GetComponent<MeshFilter>();
-        // MeshFilter tempMeshFilter2 = tempObj2.GetComponent<MeshFilter>();
-        // // triangleMeshFilter2.sharedMesh = tempMeshFilter2.sharedMesh;
-
-        // Destroy(tempObj);
-        // Destroy(tempObj2);
-
     }
 
     public void genChunk(Vector3 chunk) {
-        // GameObject toDestroy = loadedChunk; 
-        // loadedChunk = new GameObject();
-        // Destroy(toDestroy);
-
-        int pos = 0;
-        
         Debug.Log("GENERATING NEW CHUNK" + string.Join(",", chunk));
         Debug.Log("RANDS: " + string.Join(",", randomNumbers));
         int yFunk = 0;
@@ -398,9 +359,6 @@ public class PenroseGenerator : MonoBehaviour
         globalMesh.vertices = globalVertices;
         globalMesh.normals = globalNormals;
 
-        foreach (Tile tile in tiles) {
-            addRhombToMesh(tile);
-        }
 
         renderChunk(chunk);
 
