@@ -29,8 +29,12 @@ public class Tile {
 // }
 
 public class PenroseGenerator : MonoBehaviour
-{
-    public Dictionary<Vector3, ((Tile, Tile), (Vector3, Vector3))> faceMap = new Dictionary<Vector3, ((Tile, Tile), (Vector3, Vector3))>();
+{   
+    // some explanation for the below montrosity: 
+    // first is needed to get pointers to the associated tiles. 
+    // Second is for the normals, otherwise its impossible to tell which of the tiles is facing the player (although yes it is, just use filled)
+    // third is the position of the face in the triangles array, so it can be added / deleted from the global mesh
+    public Dictionary<Vector3, ((Tile, Tile), (Vector3, Vector3), (int, int))> faceMap = new Dictionary<Vector3, ((Tile, Tile), (Vector3, Vector3), (int, int))>();
     public List<Vector3> icos = new List<Vector3>();
     public List<Tile> tiles = new List<Tile>();
     public GameObject terrainObj;
@@ -251,6 +255,9 @@ public class PenroseGenerator : MonoBehaviour
 
         if (Input.GetMouseButtonDown(1)) {
             addRhombToMesh(t);
+        }
+        if (Input.GetMouseButtonDown(0)) {
+            deleteRhombFromMesh(t2);
         }
 
         // MeshFilter triangleMeshFilter = triangleObj.GetComponent<MeshFilter>();
@@ -502,6 +509,7 @@ public class PenroseGenerator : MonoBehaviour
         if (center[0] < COI[0] + fofofilter && center[0] > COI[0] 
             && center[1] < COI[1] + fofofilter && center[1] > COI[1]
             && center[2] < COI[2] + fofofilter && center[2] > COI[2]) {
+            curr.filled = true;
             tiles.Add(curr);
         }
 
@@ -516,11 +524,11 @@ public class PenroseGenerator : MonoBehaviour
                 if (faceMap[key].Item1.Item2 != null) {
                     Debug.Log("MORE THAN 2 FACES, MUST BE AN ERROR");
                 } else {
-                    faceMap[key] = ((faceMap[key].Item1.Item1, curr), (faceMap[key].Item2.Item1, Vector3.Cross(ab, ac).normalized));
+                    faceMap[key] = ((faceMap[key].Item1.Item1, curr), (faceMap[key].Item2.Item1, Vector3.Cross(ab, ac).normalized), (faceMap[key].Item3.Item1, i));
                     // Debug.Log("adding second");
                 }
             } else {
-                faceMap.Add(key, ((curr, null), (Vector3.Cross(ab, ac).normalized, new Vector3())));
+                faceMap.Add(key, ((curr, null), (Vector3.Cross(ab, ac).normalized, new Vector3()), (i, -1)));
 
             }
         }
@@ -537,6 +545,7 @@ public class PenroseGenerator : MonoBehaviour
     // --> from there, the Tile object can store the index of its vertices in the mesh, rather than in an array in the object itself
 
     void addRhombToMesh(Tile toAdd) {
+        toAdd.filled = true;
         // check each of the six faces to see if the corresponding neighbor tiles are sharing a face that is in the mesh (using faceMap and Tile.tris_in_mesh)
         // if so, that means that face needs to be deleted from the mesh (so mesh's triangles assoc with the face are modified to 0,0,0 and freeTriangles is updated)
         // if not, that means the face should be added to the mesh (freeTriangles checked -> if empty increase triangles array by 3*2*8 and freeTriangles by 8, otherwise add to triangles directly)
@@ -621,10 +630,114 @@ public class PenroseGenerator : MonoBehaviour
         terrainObj.GetComponent<MeshCollider>().sharedMesh = globalMesh;
     }
 
-    void deleteRhombFromMesh(Tile toDelete) {
+    void deleteRhombFromMesh(Tile toAdd) {
+        toAdd.filled = false;
         // check each of the six faces to see if the corresponding neighbor is filled (using faceMap and Tile.filled)
         // if so, that means the corresponding face needs to be added to the mesh
         // also need to delete the faces of the Tile itself 
+
+        int[] triangles = new int[]
+        {
+            0, 2, 1, // 0, 1, 2, 3
+            1, 2, 3,
+
+            0, 1, 5, // 0, 1, 4, 5
+            0, 5, 4,
+
+            0, 4, 6, // 0, 2, 4, 6
+            0, 6, 2,
+
+            6, 5, 7, // 4, 5, 6, 7
+            5, 6, 4,
+
+            1, 3, 7, // 1, 3, 5, 7
+            1, 7, 5,
+            
+            2, 6, 3, // 2, 3, 6, 7
+            3, 6, 7,
+        };
+        
+        // Mesh currMesh = terrainObj.GetComponent<MeshFilter>().sharedMesh;
+        Mesh currMesh = globalMesh;
+        List<int> pretrianglesToAdd = new List<int>();
+        List<int> preAddIndices = new List<int>();
+        List<int> preAddTris = new List<int>();
+        List<int> trianglesToDel = new List<int>();
+
+        // check neighbor tiles
+        for (int i = 0; i < triangles.Length; i+=6) {
+            Vector3 key = RoundToNearestHundredth(toAdd.vertices[triangles[i]] + toAdd.vertices[triangles[i+1]] + toAdd.vertices[triangles[i+2]] + toAdd.vertices[triangles[i+5]]);
+            Tile neighbor; 
+            int tri = -1;
+            if (faceMap[key].Item1.Item1 == toAdd) {
+                neighbor = faceMap[key].Item1.Item2;
+                tri = faceMap[key].Item3.Item2;
+            } else { 
+                neighbor = faceMap[key].Item1.Item1;
+                tri = faceMap[key].Item3.Item1;
+            }
+            // if (neighbor.tris_in_mesh.ContainsKey(key)) {}
+            // if (neighbor.tris_in_mesh == null) { Debug.Log("tris in mesh null");}
+
+            if (neighbor == null) {
+                Debug.Log("neighbor null?");
+            }
+
+            if (neighbor != null && neighbor.filled == true) {
+                // face needs to be ADDED
+                neighbor.tris_in_mesh.Add(key, pretrianglesToAdd.Count + currMesh.triangles.Length);
+                for (int h = 0; h < 6; h++) {
+                    pretrianglesToAdd.Add(triangles[i+h]);
+                    preAddIndices.Add(neighbor.pos);
+                    preAddTris.Add(tri);
+                }
+                Debug.Log("face added");
+            }
+
+            foreach (int value in toAdd.tris_in_mesh.Values) {
+                for (int h = 0; h < 6; h++) {
+                    trianglesToDel.Add(value + h);
+                }
+            }
+        }
+        int[] trianglesToAdd = pretrianglesToAdd.ToArray();
+        int[] addIndices = preAddIndices.ToArray();
+        int[] addTris = preAddTris.ToArray();
+
+        int[] newTriangles = new int[currMesh.triangles.Length + (addTris.Length*6)];
+
+        // add triangles
+        int j =0;
+        for (int i = 0; i < newTriangles.Length; i++) {
+            if (i < currMesh.triangles.Length) {
+                newTriangles[i] = currMesh.triangles[i];
+            } else {
+                for (int k = 0; k < 6; k++) {
+                newTriangles[i+k] = triangles[addTris[j] + k] + (addIndices[j] * 8);
+                // Debug.Log("TEST");
+                // Debug.Log(toAdd.pos);
+                }
+                i+=5;
+                j+=1;
+            }
+        }
+
+        // delete triangles, replace with 0's
+        for (int i = 0; i < trianglesToDel.Count; i++) {
+            newTriangles[trianglesToDel[i]] = 0;
+        }
+
+        // for (int i = 0; i < 8; i++) {
+        //     Debug.Log(toAdd.vertices[i]);
+        //     Debug.Log(globalVertices[i + (toAdd.pos * 8)]);
+        //     Debug.Log(currMesh.vertices[i + (toAdd.pos * 8)]);
+        // }
+
+        globalMesh.triangles = newTriangles;
+
+        terrainObj.GetComponent<MeshFilter>().sharedMesh = globalMesh;
+        terrainObj.GetComponent<MeshCollider>().sharedMesh = globalMesh;
+
     }
 
     void renderPlane(Plane plane, bool side) {
@@ -717,7 +830,7 @@ public class PenroseGenerator : MonoBehaviour
     }
     Vector3 RoundToNearestHundredth(Vector3 vector)
     {
-        int roundVal = 10;
+        int roundVal = 100;
         // return vector;
         return new Vector3(
             (float)Mathf.Round(vector.x * roundVal) / roundVal,
