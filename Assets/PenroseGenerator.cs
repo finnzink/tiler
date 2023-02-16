@@ -50,6 +50,7 @@ public class PenroseGenerator : MonoBehaviour
 
     public Vector3[] globalVertices;
     public Vector3[] globalNormals;
+    public Mesh globalMesh;
     public int currVertex;
 
     public Material white_material;
@@ -60,22 +61,23 @@ public class PenroseGenerator : MonoBehaviour
 
         globalVertices= new Vector3[7000];
         globalNormals= new Vector3[7000];
+        globalMesh = new Mesh();
         currVertex = 0;
 
         white_material = new Material(Shader.Find("Standard"));
         white_material.color = Color.white;
 
         terrainObj = new GameObject("terrain");
-        Mesh combinedMesh = new Mesh();
+        // Mesh combinedMesh = new Mesh();
         // combinedMesh.CombineMeshes(combine.ToArray(), true, true);
 
         MeshFilter meshFilter = terrainObj.AddComponent<MeshFilter>();
         MeshRenderer meshRenderer = terrainObj.AddComponent<MeshRenderer>();
         MeshCollider meshCollider = terrainObj.AddComponent<MeshCollider>();
 
-        meshCollider.sharedMesh = combinedMesh;
+
         meshRenderer.material = white_material;
-        meshFilter.sharedMesh = combinedMesh;
+
 
         debugPlanes = false;
         showRhombs = true;
@@ -131,6 +133,9 @@ public class PenroseGenerator : MonoBehaviour
                 genChunk(new Vector3(i*8, 0, j*8));
             }
         }
+
+        meshCollider.sharedMesh = globalMesh;
+        meshFilter.sharedMesh = globalMesh;
         
         // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
 
@@ -161,6 +166,7 @@ public class PenroseGenerator : MonoBehaviour
 
         if (hits.Length == 0 || meshCollider == null)
         {
+            // Debug.Log("OOF");
             return;
         }
 
@@ -204,7 +210,7 @@ public class PenroseGenerator : MonoBehaviour
             Debug.Log("FLOAT ERROR"); 
         }
 
-        if (faceMap[key].Item1.Item1 == null || faceMap[key].Item1.Item2 == null) { return;}// no neighbor
+        if (faceMap[key].Item1.Item1 == null || faceMap[key].Item1.Item2 == null) { return; }// no neighbor
 
         Tile t = faceMap[key].Item1.Item1;
         Tile t2 = faceMap[key].Item1.Item2;
@@ -244,10 +250,9 @@ public class PenroseGenerator : MonoBehaviour
         //     // tiles;
         // }
 
-        // if (Input.GetMouseButtonDown(1)) {
-        //     Debug.Log("clicked2");
-        //     int index = t2.pos;
-        // }
+        if (Input.GetMouseButtonDown(1)) {
+            addRhombToMesh(t);
+        }
 
         // MeshFilter triangleMeshFilter = triangleObj.GetComponent<MeshFilter>();
         // MeshFilter tempMeshFilter = tempObj.GetComponent<MeshFilter>();
@@ -384,8 +389,8 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
-        terrainObj.GetComponent<MeshFilter>().sharedMesh.vertices = globalVertices;
-        terrainObj.GetComponent<MeshFilter>().sharedMesh.normals = globalNormals;
+        globalMesh.vertices = globalVertices;
+        globalMesh.normals = globalNormals;
 
         foreach (Tile tile in tiles) {
             addRhombToMesh(tile);
@@ -558,7 +563,8 @@ public class PenroseGenerator : MonoBehaviour
             3, 6, 7,
         };
         
-        Mesh currMesh = terrainObj.GetComponent<MeshFilter>().sharedMesh;
+        // Mesh currMesh = terrainObj.GetComponent<MeshFilter>().sharedMesh;
+        Mesh currMesh = globalMesh;
         List<int> pretrianglesToAdd = new List<int>();
         List<int> trianglesToDel = new List<int>();
 
@@ -571,7 +577,6 @@ public class PenroseGenerator : MonoBehaviour
             // if (neighbor.tris_in_mesh == null) { Debug.Log("tris in mesh null");}
 
             if (neighbor != null && neighbor.tris_in_mesh.ContainsKey(key)) {
-                Debug.Log("contains key");
                 // Tile.tris_in_mesh[key] needs to be deleted.
                 for (int h = 0; h < 6; h++) {
                     trianglesToDel.Add(neighbor.tris_in_mesh[key] + h);
@@ -612,7 +617,7 @@ public class PenroseGenerator : MonoBehaviour
         //     Debug.Log(currMesh.vertices[i + (toAdd.pos * 8)]);
         // }
 
-        terrainObj.GetComponent<MeshFilter>().sharedMesh.triangles = newTriangles;
+        globalMesh.triangles = newTriangles;
     }
 
     void deleteRhombFromMesh(Tile toDelete) {
