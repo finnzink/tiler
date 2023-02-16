@@ -134,8 +134,7 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
-        meshCollider.sharedMesh = globalMesh;
-        meshFilter.sharedMesh = globalMesh;
+        
         
         // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
 
@@ -187,11 +186,11 @@ public class PenroseGenerator : MonoBehaviour
         Vector3 toFlip2 = new Vector3();
 
         // this seems very inefficient, but it works for now
-        if (Mathf.Abs(d01 - d12) < .001) {
+        if (Mathf.Abs(d01 - d12) < .01) {
             toFlip = p1;
             toFlip1 = p2;
             toFlip2 = p0;
-        } else if (Mathf.Abs(d01 - d20) < .001) {
+        } else if (Mathf.Abs(d01 - d20) < .01) {
             toFlip = p0; // corr
             toFlip1 = p2;
             toFlip2 = p1;
@@ -222,8 +221,8 @@ public class PenroseGenerator : MonoBehaviour
             t2 = temp;
         }
 
-        // GameObject tempObj = renderRhomb(t);
-        // GameObject tempObj2 = renderRhomb(t2);
+        // GameObject tempObj = addRhombToTiles(t);
+        // GameObject tempObj2 = addRhombToTiles(t2);
 
         // if (Input.GetMouseButtonDown(0)) {
         //     Debug.Log("clicked");
@@ -369,7 +368,7 @@ public class PenroseGenerator : MonoBehaviour
                                     //     centroid = position[0];
                                     // }
 
-                                    renderRhomb(position, chunk);
+                                    addRhombToTiles(position, chunk);
                                     
                                 }   
                             }
@@ -420,7 +419,7 @@ public class PenroseGenerator : MonoBehaviour
     }
 
     // this method should really only 1. flip vertices 2. add to faceMap 3. call addRhomb
-    void renderRhomb(Vector3[] vertices, Vector3 chunk) {
+    void addRhombToTiles(Vector3[] vertices, Vector3 chunk) {
         // MeshFilter meshFilter = GetComponent<MeshFilter>();
         Mesh mesh = new Mesh();
         // meshFilter.mesh = mesh;
@@ -515,8 +514,7 @@ public class PenroseGenerator : MonoBehaviour
 
             if (faceMap.ContainsKey(key)){
                 if (faceMap[key].Item1.Item2 != null) {
-                    // quick and dirty, because this same func is used for add preview, but shouldn't add to map in that case.
-                    // Debug.Log("MORE THAN 2 FACES, MUST BE AN ERROR");
+                    Debug.Log("MORE THAN 2 FACES, MUST BE AN ERROR");
                 } else {
                     faceMap[key] = ((faceMap[key].Item1.Item1, curr), (faceMap[key].Item2.Item1, Vector3.Cross(ab, ac).normalized));
                     // Debug.Log("adding second");
@@ -618,6 +616,9 @@ public class PenroseGenerator : MonoBehaviour
         // }
 
         globalMesh.triangles = newTriangles;
+
+        terrainObj.GetComponent<MeshFilter>().sharedMesh = globalMesh;
+        terrainObj.GetComponent<MeshCollider>().sharedMesh = globalMesh;
     }
 
     void deleteRhombFromMesh(Tile toDelete) {
@@ -716,11 +717,12 @@ public class PenroseGenerator : MonoBehaviour
     }
     Vector3 RoundToNearestHundredth(Vector3 vector)
     {
+        int roundVal = 10;
         // return vector;
         return new Vector3(
-            (float)Mathf.Round(vector.x * 100) / 100,
-            (float)Mathf.Round(vector.y * 100) / 100,
-            (float)Mathf.Round(vector.z * 100) / 100
+            (float)Mathf.Round(vector.x * roundVal) / roundVal,
+            (float)Mathf.Round(vector.y * roundVal) / roundVal,
+            (float)Mathf.Round(vector.z * roundVal) / roundVal
         );
     }
 }
