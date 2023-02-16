@@ -618,12 +618,6 @@ public class PenroseGenerator : MonoBehaviour
             newTriangles[trianglesToDel[i]] = 0;
         }
 
-        // for (int i = 0; i < 8; i++) {
-        //     Debug.Log(toAdd.vertices[i]);
-        //     Debug.Log(globalVertices[i + (toAdd.pos * 8)]);
-        //     Debug.Log(currMesh.vertices[i + (toAdd.pos * 8)]);
-        // }
-
         globalMesh.triangles = newTriangles;
 
         terrainObj.GetComponent<MeshFilter>().sharedMesh = globalMesh;
@@ -657,11 +651,8 @@ public class PenroseGenerator : MonoBehaviour
             3, 6, 7,
         };
         
-        // Mesh currMesh = terrainObj.GetComponent<MeshFilter>().sharedMesh;
         Mesh currMesh = globalMesh;
         List<int> pretrianglesToAdd = new List<int>();
-        // List<int> preAddIndices = new List<int>();
-        // List<int> preAddTris = new List<int>();
         List<int> trianglesToDel = new List<int>();
 
         // check neighbor tiles
@@ -676,8 +667,6 @@ public class PenroseGenerator : MonoBehaviour
                 neighbor = faceMap[key].Item1.Item1;
                 tri = faceMap[key].Item3.Item1;
             }
-            // if (neighbor.tris_in_mesh.ContainsKey(key)) {}
-            // if (neighbor.tris_in_mesh == null) { Debug.Log("tris in mesh null");}
 
             if (neighbor == null) {
                 Debug.Log("neighbor null?");
@@ -685,22 +674,13 @@ public class PenroseGenerator : MonoBehaviour
             }
 
             if (neighbor != null && neighbor.filled == true) {
-                // for ref, this is how it works for add: toAdd.tris_in_mesh.Add(key, pretrianglesToAdd.Count + currMesh.triangles.Length);
-                // neighbor.tris_in_mesh.Add(key, pretrianglesToAdd.Count + currMesh.triangles.Length);
-                neighbor.tris_in_mesh.Add(key, pretrianglesToAdd.Count + currMesh.triangles.Length); // pretty sure this is fine
+                neighbor.tris_in_mesh.Add(key, pretrianglesToAdd.Count + currMesh.triangles.Length);
                 for (int h = 0; h < 6; h++) {
-                    pretrianglesToAdd.Add((triangles[tri+h]) + (neighbor.pos*8)); // this is the issue, needs to know which 
-                    Debug.Log(((tri+h) + (neighbor.pos*8)));
-                    // preAddIndices.Add(neighbor.pos);
-                    // preAddTris.Add(tri);
+                    pretrianglesToAdd.Add((triangles[tri+h]) + (neighbor.pos*8));
                 }
-                
-                Debug.Log("face added");
             }
 
-            // pretty sure this is working well, as well as add triangles
             foreach (int value in toAdd.tris_in_mesh.Values) {
-                Debug.Log("tris in mesh size: " + toAdd.tris_in_mesh.Count); 
                 for (int h = 0; h < 6; h++) {
                     trianglesToDel.Add(value + h);
                 }
@@ -708,9 +688,6 @@ public class PenroseGenerator : MonoBehaviour
             toAdd.tris_in_mesh.Clear();
         }
         int[] trianglesToAdd = pretrianglesToAdd.ToArray();
-        // int[] addIndices = preAddIndices.ToArray();
-        // int[] addTris = preAddTris.ToArray();
-
         int[] newTriangles = new int[currMesh.triangles.Length + (trianglesToAdd.Length)];
 
         // add triangles
@@ -719,27 +696,14 @@ public class PenroseGenerator : MonoBehaviour
             if (i < currMesh.triangles.Length) {
                 newTriangles[i] = currMesh.triangles[i];
             } else {
-                // for (int k = 0; k < 6; k++) {
                 newTriangles[i] = trianglesToAdd[i - currMesh.triangles.Length];
-                // Debug.Log("TEST");
-                // Debug.Log(toAdd.pos);
-                }
-                // i+=5;
-                // j+=1;
-                // Debug.Log("face actually added");
-            // }
+            }
         }
 
         // delete triangles, replace with 0's
         for (int i = 0; i < trianglesToDel.Count; i++) {
             newTriangles[trianglesToDel[i]] = 0;
         }
-
-        // for (int i = 0; i < 8; i++) {
-        //     Debug.Log(toAdd.vertices[i]);
-        //     Debug.Log(globalVertices[i + (toAdd.pos * 8)]);
-        //     Debug.Log(currMesh.vertices[i + (toAdd.pos * 8)]);
-        // }
 
         globalMesh.triangles = newTriangles;
 
