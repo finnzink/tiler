@@ -40,7 +40,7 @@ public class PenroseGenerator : MonoBehaviour
     public GameObject terrainObj;
     public GameObject spherePrefab;
     public GameObject spherePrefab2;
-    public Stack<int> freeTriangles; // updated on deletions, checked on insertions
+    public List<int> freeTriangles; // updated on deletions, checked on insertions
     // public Material material;
     // public MeshFilter meshFilter;
     // public MeshCollider meshCollider;
@@ -532,6 +532,7 @@ public class PenroseGenerator : MonoBehaviour
         Mesh currMesh = globalMesh;
         List<int> pretrianglesToAdd = new List<int>();
         List<int> trianglesToDel = new List<int>();
+        List<Vector3> keys = new List<Vector3>();
 
         // check neighbor tiles
         for (int i = 0; i < triangles.Length; i+=6) {
@@ -549,7 +550,7 @@ public class PenroseGenerator : MonoBehaviour
                 neighbor.tris_in_mesh.Remove(key);
             } else {
                 // update Tile.tris_in_mesh, and add it to the mesh.
-                toAdd.tris_in_mesh.Add(key, pretrianglesToAdd.Count + currMesh.triangles.Length);
+                keys.Add(key);
                 for (int h = 0; h < 6; h++) {
                     pretrianglesToAdd.Add(triangles[i+h]);
                 }
@@ -557,23 +558,39 @@ public class PenroseGenerator : MonoBehaviour
         }
         int[] trianglesToAdd = pretrianglesToAdd.ToArray();
 
-        int[] newTriangles = new int[currMesh.triangles.Length + trianglesToAdd.Length];
+        int[] newTriangles;
 
-        // add triangles
-        int j =0;
-        for (int i = 0; i < newTriangles.Length; i++) {
-            if (i < currMesh.triangles.Length) {
-                newTriangles[i] = currMesh.triangles[i];
-            } else {
-                newTriangles[i] = trianglesToAdd[j] + (toAdd.pos * 8);
-                // Debug.Log(toAdd.pos);
-                j++;
+        if (trianglesToAdd.Length > freeTriangles.Count) {
+            newTriangles = new int[currMesh.triangles.Length + trianglesToAdd.Length];
+            // add triangles
+            int j =0;
+            for (int i = 0; i < newTriangles.Length; i++) {
+                
+                if (i < currMesh.triangles.Length) {
+                    newTriangles[i] = currMesh.triangles[i];
+                } else {
+                    if ((j %6) == 0) {toAdd.tris_in_mesh.Add(keys[j/6], i);}
+                    newTriangles[i] = trianglesToAdd[j] + (toAdd.pos * 8);
+                    // Debug.Log(toAdd.pos);
+                    j++;
+                }
+            }
+        } else {
+            newTriangles = currMesh.triangles;
+            for (int i = 0; i < trianglesToAdd.Length; i++) {
+                // if (newTriangles[freeTriangles[0]] != 0) {Debug.Log("PROBLEM!");}
+                // Debug.Log("adding index " + freeTriangles[0]);
+                if ((i %6) == 0) {toAdd.tris_in_mesh.Add(keys[i/6], freeTriangles[0]);}
+                newTriangles[freeTriangles[0]] = trianglesToAdd[i] + (toAdd.pos * 8);
+                freeTriangles.RemoveAt(0);
             }
         }
 
         // delete triangles, replace with 0's
         for (int i = 0; i < trianglesToDel.Count; i++) {
+            // Debug.Log("deleting index " + trianglesToDel[i]);
             newTriangles[trianglesToDel[i]] = 0;
+            freeTriangles.Add(trianglesToDel[i]);
         }
 
         globalMesh.triangles = newTriangles;
