@@ -629,6 +629,8 @@ public class PenroseGenerator : MonoBehaviour
         Mesh currMesh = globalMesh;
         List<int> pretrianglesToAdd = new List<int>();
         List<int> trianglesToDel = new List<int>();
+        List<Tile> tilesTrack = new List<Tile>();
+        List<Vector3> keyTrack = new List<Vector3>();
 
         // check neighbor tiles
         for (int i = 0; i < triangles.Length; i+=6) {
@@ -649,7 +651,9 @@ public class PenroseGenerator : MonoBehaviour
             }
 
             if (neighbor != null && neighbor.filled == true) {
-                neighbor.tris_in_mesh.Add(key, pretrianglesToAdd.Count + currMesh.triangles.Length);
+                tilesTrack.Add(neighbor);
+                keyTrack.Add(key);
+                // neighbor.tris_in_mesh.Add(key, pretrianglesToAdd.Count + currMesh.triangles.Length);
                 for (int h = 0; h < 6; h++) {
                     pretrianglesToAdd.Add((triangles[tri+h]) + (neighbor.pos*8));
                 }
@@ -663,21 +667,35 @@ public class PenroseGenerator : MonoBehaviour
             toAdd.tris_in_mesh.Clear();
         }
         int[] trianglesToAdd = pretrianglesToAdd.ToArray();
-        int[] newTriangles = new int[currMesh.triangles.Length + (trianglesToAdd.Length)];
+        int[] newTriangles;
+        
+        if (trianglesToAdd.Length > freeTriangles.Count) {
+            newTriangles = new int[currMesh.triangles.Length + (trianglesToAdd.Length)];
 
-        // add triangles
-        int j =0;
-        for (int i = 0; i < newTriangles.Length; i++) {
-            if (i < currMesh.triangles.Length) {
-                newTriangles[i] = currMesh.triangles[i];
-            } else {
-                newTriangles[i] = trianglesToAdd[i - currMesh.triangles.Length];
+            // add triangles
+            int j =0;
+            for (int i = 0; i < newTriangles.Length; i++) {
+                if (i < currMesh.triangles.Length) {
+                    newTriangles[i] = currMesh.triangles[i];
+                } else {
+                    newTriangles[i] = trianglesToAdd[i - currMesh.triangles.Length];
+                }
+            }
+        } else {
+            newTriangles = currMesh.triangles;
+            for (int i = 0; i < trianglesToAdd.Length; i++) {
+                // if (newTriangles[freeTriangles[0]] != 0) {Debug.Log("PROBLEM!");}
+                // Debug.Log("adding index " + freeTriangles[0]);
+                if ((i %6) == 0) {tilesTrack[i/6].tris_in_mesh.Add(keyTrack[i/6], freeTriangles[0]);}
+                newTriangles[freeTriangles[0]] = trianglesToAdd[i];
+                freeTriangles.RemoveAt(0);
             }
         }
 
         // delete triangles, replace with 0's
         for (int i = 0; i < trianglesToDel.Count; i++) {
             newTriangles[trianglesToDel[i]] = 0;
+            freeTriangles.Add(trianglesToDel[i]);
         }
 
         globalMesh.triangles = newTriangles;
