@@ -61,6 +61,9 @@ public class PenroseGenerator : MonoBehaviour
     public int num_chunks;
     public int pos;
 
+    public Dictionary<Vector3, (int, int)> chunkToTileRange = new Dictionary<Vector3, (int, int)>();
+    public List<Tile> rhombsToRender = new List<Tile>();
+
     // Start is called before the first frame update
     void Start()
     {
@@ -142,9 +145,12 @@ public class PenroseGenerator : MonoBehaviour
         }
 
         
-        foreach (Tile tile in tiles) {
+        foreach (Tile tile in rhombsToRender) {
             addRhombToMesh(tile);
         }
+        rhombsToRender.Clear();
+
+        deleteChunk(new Vector3(0, 0, 0));
         
         // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
 
@@ -241,6 +247,7 @@ public class PenroseGenerator : MonoBehaviour
     }
 
     public void genChunk(Vector3 chunk) {
+        chunkToTileRange.Add(chunk, (tiles.Count, -1));
         Debug.Log("GENERATING NEW CHUNK" + string.Join(",", chunk));
         Debug.Log("RANDS: " + string.Join(",", randomNumbers));
         int yFunk = 0;
@@ -359,6 +366,7 @@ public class PenroseGenerator : MonoBehaviour
         globalMesh.vertices = globalVertices;
         globalMesh.normals = globalNormals;
 
+        chunkToTileRange[chunk] = (chunkToTileRange[chunk].Item1, tiles.Count);
 
         renderChunk(chunk);
 
@@ -468,8 +476,9 @@ public class PenroseGenerator : MonoBehaviour
             && center[1] < COI[1] + fofofilter && center[1] > COI[1]
             && center[2] < COI[2] + fofofilter && center[2] > COI[2]) {
             curr.filled = true;
-            tiles.Add(curr);
+            rhombsToRender.Add(curr);
         }
+        tiles.Add(curr);
 
         for (int i = 0; i < triangles.Length; i+=6 ) {
             Vector3 key = RoundToNearestHundredth(mesh.vertices[triangles[i]] + mesh.vertices[triangles[i+1]] + mesh.vertices[triangles[i+2]] + mesh.vertices[triangles[i+5]]);
@@ -645,10 +654,10 @@ public class PenroseGenerator : MonoBehaviour
                 tri = faceMap[key].Item3.Item1;
             }
 
-            if (neighbor == null) {
-                Debug.Log("neighbor null?");
-                return;
-            }
+            // if (neighbor == null) {
+            //     Debug.Log("neighbor null?");
+            //     return;
+            // }
 
             if (neighbor != null && neighbor.filled == true) {
                 tilesTrack.Add(neighbor);
@@ -703,6 +712,28 @@ public class PenroseGenerator : MonoBehaviour
         terrainObj.GetComponent<MeshFilter>().sharedMesh = globalMesh;
         terrainObj.GetComponent<MeshCollider>().sharedMesh = globalMesh;
 
+    }
+
+    void deleteChunk(Vector3 chunk) {
+        // delete tiles array, and call delete on each tile
+        for (int i = chunkToTileRange[chunk].Item1; i < chunkToTileRange[chunk].Item2; i++) {
+            if (tiles[i].filled) {deleteRhombFromMesh(tiles[i]);}
+        }
+
+        tiles.RemoveRange(chunkToTileRange[chunk].Item1, chunkToTileRange[chunk].Item2 - 1); // change to delete all the tile objects too.
+        
+        List<Vector3> keysToModify = new List<Vector3>();
+        int delta = chunkToTileRange[chunk].Item2 - chunkToTileRange[chunk].Item1;
+        foreach (Vector3 key in chunkToTileRange.Keys) {
+            if (chunkToTileRange[key].Item1 > chunkToTileRange[chunk].Item1) {
+                keysToModify.Add(key);
+            }
+        }
+        chunkToTileRange.Remove(chunk);
+
+        foreach (Vector3 key in keysToModify) {
+            chunkToTileRange[key] = (chunkToTileRange[key].Item1 - delta, chunkToTileRange[key].Item2 - delta);
+        }
     }
 
     void renderPlane(Plane plane, bool side) {
