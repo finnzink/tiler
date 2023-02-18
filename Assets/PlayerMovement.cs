@@ -6,7 +6,7 @@ public class PlayerMovement : MonoBehaviour
 {
     public GameObject terrainGenator;
     private PenroseGenerator script1;
-    private GameObject cam;
+    public GameObject cam;
     public List<Vector3> icos = new List<Vector3>();
     public float moveSpeed; // adjust as desired
     public float jumpForce = 10f;
@@ -21,23 +21,29 @@ public class PlayerMovement : MonoBehaviour
 
     private Rigidbody rb;
     private bool isGrounded;
+    private bool startingSnap;
 
     void Start()
     {
+        startingSnap = true;
+        script1 = terrainGenator.GetComponent<PenroseGenerator>();
         moveSpeed = 2f;
         cam = GameObject.Find("Player Camera");
-        rb = GetComponent<Rigidbody>();
+        if (cam == null) {
+            Debug.Log("can't find camera");
+        }
+        // rb = GetComponent<Rigidbody>();
 
-        PhysicMaterial playerMaterial = new PhysicMaterial();
-        playerMaterial.staticFriction = 1.0f;
-        playerMaterial.dynamicFriction = 0.1f;
-        playerMaterial.bounciness = 0.0f;
-        Collider collider = GetComponent<Collider>();
-        collider.material = playerMaterial;
+        // PhysicMaterial playerMaterial = new PhysicMaterial();
+        // playerMaterial.staticFriction = 1.0f;
+        // playerMaterial.dynamicFriction = 0.1f;
+        // playerMaterial.bounciness = 0.0f;
+        // Collider collider = GetComponent<Collider>();
+        // collider.material = playerMaterial;
 
-        rb.constraints = RigidbodyConstraints.FreezeRotation;
-        rb.isKinematic = true;
-        isGrounded = true;
+        // rb.constraints = RigidbodyConstraints.FreezeRotation;
+        // rb.isKinematic = true;
+        // isGrounded = true;
         Cursor.lockState = CursorLockMode.Locked;
         float sqrt5 = Mathf.Sqrt(5);
         for (int n = 0; n < 5; n++)
@@ -86,7 +92,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.P)) {
             physicsOn = !physicsOn;
-            rb.isKinematic = !physicsOn;
+            startingSnap = true;
         }
 
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
@@ -122,17 +128,65 @@ public class PlayerMovement : MonoBehaviour
             transform.position += moveDirection;
 
         } else {
-            // Move the player left and right
-            float horizontalInput = Input.GetAxis("Horizontal");
-            float verticalInput = Input.GetAxis("Vertical");
-            Vector3 movement = rotation * new Vector3(horizontalInput, 0, verticalInput) * moveSpeed;
-            rb.MovePosition(rb.position + movement * Time.fixedDeltaTime);
+            float moveX = Input.GetAxis("Horizontal");
+            float moveZ = Input.GetAxis("Vertical");
 
-            // Jump if the player is on the ground and the space bar is pressed
-            if (isGrounded && Input.GetKeyDown(KeyCode.Space)) {
-                rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-                isGrounded = false;
+            Vector3 moveDirection = rotation * (new Vector3(moveX, 0f, moveZ));
+            moveDirection = moveDirection.normalized * moveSpeed * 5 * Time.deltaTime;
+            Vector3 newPos = transform.position + moveDirection;
+
+            Vector3 head = newPos;
+            Vector3 tail = head - new Vector3(0, -2, 0);
+
+            // Debug.Log(head);
+
+            // get intersections with mesh
+            MeshCollider collider = script1.terrainObj.GetComponent<MeshCollider>();
+            
+            if (collider == null) {
+                Debug.Log("collider not set correctly");
             }
+            
+            Vector3 direction_down = new Vector3(0, -2, 0);
+            Vector3 direction_up = new Vector3(0, 1, 0);
+
+            // Cast a ray from head in the direction of the line segment
+            Ray head_ray = new Ray(head, direction_down);
+            Ray up_ray = new Ray(head, direction_up);
+            RaycastHit[] down_hits = Physics.RaycastAll(head_ray);
+            RaycastHit[] up_hits = Physics.RaycastAll(head_ray);
+
+            // Find all intersection points with the collider
+            List<Vector3> inner_intersections = new List<Vector3>();
+            Vector3 above_head = new Vector3(); 
+            Vector3 below_head = new Vector3();
+            foreach (RaycastHit hit in down_hits) {
+                if (hit.collider == collider && head.y - hit.point.y < 2 ) {
+                    // This hit is with the desired collider, so add the intersection point to the list
+                    inner_intersections.Add(hit.point);
+                }
+                else if (hit.collider == collider) {
+                    below_head = hit.point;
+                    break;
+                }
+            }
+
+            if (up_hits.Length > 0) {
+                above_head = up_hits[0].point;
+            }
+            
+            // the below is temporary, just a waypoint
+            if (inner_intersections.Count > 0) { // 
+                newPos.y = inner_intersections[inner_intersections.Count - 1].y + 1;
+                transform.position = newPos;
+
+            } else if (below_head != Vector3.zero && (startingSnap || tail.y - below_head.y < .1)){ // second part is to check for cliff
+                newPos.y = below_head.y + 1;
+                transform.position = newPos;
+
+            }
+            startingSnap = false;
+            // physicsOn = !physicsOn;
         }
 
         Vector3 newChunk = new Vector3(0, 0, 0);
@@ -144,9 +198,9 @@ public class PlayerMovement : MonoBehaviour
         }
 
         for (int i = 0; i < 3; i++) {
-            // float dotProd = Vector3.Dot(icos[i], playerBody.position);
-            // basisOffset[i] = dotProd;
-            // newChunk[i] = (int)((dotProd - (Mathf.Sign(dotProd) * 4))/8);
+            float dotProd = Vector3.Dot(icos[i], playerBody.position);
+            basisOffset[i] = dotProd;
+            newChunk[i] = (int)((dotProd - (Mathf.Sign(dotProd) * 4))/8);
             newChunk[i] = (int)(playerBody.position[i]/8);
             if (newChunk[i] != currChunk[i]) {
                 chunkChanged = true;
@@ -154,7 +208,6 @@ public class PlayerMovement : MonoBehaviour
         }
         if (chunkChanged) {
             currChunk = newChunk;
-            script1 = terrainGenator.GetComponent<PenroseGenerator>();
             
             // script1.genChunk(newChunk);
         }

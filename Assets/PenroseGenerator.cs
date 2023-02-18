@@ -43,10 +43,11 @@ public class PenroseGenerator : MonoBehaviour
     public List<int> freeTriangles;
     public List<GameObject> loadedChunk;
     public GameObject previewBlock;
-    public Mesh mesh;
+    // public Mesh mesh;
     public float[] randomNumbers = new float[6];
     public bool debugPlanes;
     public bool showRhombs;
+    public bool previewOn;
 
     public Vector3[] globalVertices;
     public Vector3[] globalNormals;
@@ -65,8 +66,8 @@ public class PenroseGenerator : MonoBehaviour
     {
         num_chunks = 2;
         pos = 0;
-        globalVertices= new Vector3[7000*num_chunks];
-        globalNormals= new Vector3[7000*num_chunks];
+        globalVertices= new Vector3[0];
+        globalNormals= new Vector3[0];
         globalMesh = new Mesh();
         currVertex = 0;
 
@@ -89,8 +90,9 @@ public class PenroseGenerator : MonoBehaviour
 
         debugPlanes = false;
         showRhombs = true;
+        previewOn = true;
         loadedChunk.Add(new GameObject());
-        mesh = new Mesh();
+        // mesh = new Mesh();
 
         Material green_material = new Material(Shader.Find("Standard"));
         green_material.color = Color.green;
@@ -204,8 +206,10 @@ public class PenroseGenerator : MonoBehaviour
             t = t2;
             t2 = temp;
         }
-
-        addWireRhomb(t.vertices, previewBlock);
+        if (Input.GetKeyDown(KeyCode.L)) {
+            previewOn = !previewOn;
+        }
+        if (previewOn) {addWireRhomb(t.vertices, previewBlock);}
 
         if (Input.GetMouseButtonDown(1)) {
             addRhombToMesh(t);
@@ -217,6 +221,10 @@ public class PenroseGenerator : MonoBehaviour
     }
 
     public void genChunk(Vector3 chunk) {
+        // add 7000 empty vector3's to the end of the arrays
+        System.Array.Resize(ref globalNormals, globalNormals.Length + 7000);
+        System.Array.Resize(ref globalVertices, globalVertices.Length + 7000);
+
         chunkToTileRange.Add(chunk, (tiles.Count, -1));
         Debug.Log("GENERATING NEW CHUNK" + string.Join(",", chunk));
         Debug.Log("RANDS: " + string.Join(",", randomNumbers));
@@ -320,16 +328,6 @@ public class PenroseGenerator : MonoBehaviour
                         }
                     // }
                 }
-            }
-        }
-
-        bool displayPoints = true;
-        int numTiles = tiles.Count;
-        // display all the points
-        if (displayPoints) {
-            for (int i = 0; i < numTiles; i++) {
-                // foreach (Vector3 vertex in tiles[i].vertices)
-                // Instantiate(spherePrefab, vertex, Quaternion.identity);
             }
         }
 

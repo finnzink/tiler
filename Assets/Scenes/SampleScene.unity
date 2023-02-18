@@ -322,7 +322,6 @@ GameObject:
   - component: {fileID: 1077756984}
   - component: {fileID: 1077756983}
   - component: {fileID: 1077756982}
-  - component: {fileID: 1077756981}
   - component: {fileID: 1077756985}
   - component: {fileID: 1077756986}
   m_Layer: 0
@@ -332,19 +331,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!65 &1077756981
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1077756980}
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1077756982
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -404,7 +390,7 @@ Transform:
   m_GameObject: {fileID: 1077756980}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.1, y: 2, z: 0.1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1516372034}
@@ -442,8 +428,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   terrainGenator: {fileID: 0}
+  cam: {fileID: 0}
   icos: []
   moveSpeed: 5
+  jumpForce: 10
   mouseSensitivity: 500
   upDownRange: 80
   upDownSpeed: 2
@@ -456,6 +444,7 @@ MonoBehaviour:
   - 0
   - 0
   - 0
+  physicsOn: 0
 --- !u!1 &1479638291
 GameObject:
   m_ObjectHideFlags: 0
@@ -522,12 +511,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   icos: []
+  terrainObj: {fileID: 0}
   spherePrefab: {fileID: 1568406306}
   spherePrefab2: {fileID: 253070817}
-  material: {fileID: 2100000, guid: 439c23ec7b7ec4a7fa49bcfbadb12491, type: 2}
-  meshFilter: {fileID: 0}
-  meshCollider: {fileID: 0}
-  loadedChunk: {fileID: 0}
+  freeTriangles: 
+  loadedChunk:
+  - {fileID: 0}
+  previewBlock: {fileID: 0}
   mesh: {fileID: 0}
   randomNumbers:
   - 0
@@ -538,6 +528,14 @@ MonoBehaviour:
   - 0
   debugPlanes: 0
   showRhombs: 0
+  previewOn: 0
+  globalVertices: []
+  globalNormals: []
+  globalMesh: {fileID: 0}
+  currVertex: 0
+  white_material: {fileID: 0}
+  num_chunks: 0
+  pos: 0
 --- !u!33 &1479638295
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -651,7 +649,7 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.3
+  near clip plane: 0.01
   far clip plane: 1000
   field of view: 60
   orthographic: 0
@@ -679,7 +677,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1516372031}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
