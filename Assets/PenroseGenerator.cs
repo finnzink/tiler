@@ -40,13 +40,9 @@ public class PenroseGenerator : MonoBehaviour
     public GameObject terrainObj;
     public GameObject spherePrefab;
     public GameObject spherePrefab2;
-    public List<int> freeTriangles; // updated on deletions, checked on insertions
-    // public Material material;
-    // public MeshFilter meshFilter;
-    // public MeshCollider meshCollider;
+    public List<int> freeTriangles;
     public List<GameObject> loadedChunk;
-    public GameObject triangleObj;
-    public GameObject triangleObj2;
+    public GameObject previewBlock;
     public Mesh mesh;
     public float[] randomNumbers = new float[6];
     public bool debugPlanes;
@@ -78,53 +74,32 @@ public class PenroseGenerator : MonoBehaviour
         white_material.color = Color.white;
 
         terrainObj = new GameObject("terrain");
-        // Mesh combinedMesh = new Mesh();
-        // combinedMesh.CombineMeshes(combine.ToArray(), true, true);
 
         MeshFilter meshFilter = terrainObj.AddComponent<MeshFilter>();
         MeshRenderer meshRenderer = terrainObj.AddComponent<MeshRenderer>();
         MeshCollider meshCollider = terrainObj.AddComponent<MeshCollider>();
 
-
         meshRenderer.material = white_material;
-
 
         debugPlanes = false;
         showRhombs = true;
         loadedChunk.Add(new GameObject());
         mesh = new Mesh();
 
-        Material red_material = new Material(Shader.Find("Standard"));
-        red_material.color = Color.red;
-
         Material green_material = new Material(Shader.Find("Standard"));
         green_material.color = Color.green;
 
-        triangleObj = new GameObject();
-        MeshFilter triMeshFilter = triangleObj.AddComponent<MeshFilter>();
-        MeshRenderer triMeshRenderer = triangleObj.AddComponent<MeshRenderer>();
-        triMeshRenderer.material = green_material;
+        previewBlock = new GameObject("preview block");
+        LineRenderer lineRenderer = previewBlock.AddComponent<LineRenderer>();
+        lineRenderer.material = green_material;
+        lineRenderer.widthMultiplier = 0.05f;
 
-        triangleObj2 = new GameObject();
-        MeshFilter tri2MeshFilter = triangleObj2.AddComponent<MeshFilter>();
-        MeshRenderer tri2MeshRenderer = triangleObj2.AddComponent<MeshRenderer>();
-        tri2MeshRenderer.material = red_material;
-        // meshFilter = GetComponent<MeshFilter>();
-        // meshCollider = GetComponent<MeshCollider>();
-        // material.color = new Color(1, 1, 1, 1);
-        // generate offsets
         int seed = (int)System.DateTime.Now.Ticks;
         Random.InitState(seed);
         
-
         for (int i = 0; i < randomNumbers.Length; i++) {
             randomNumbers[i] = Random.Range(0f, 1f);
-            // Debug.Log(randomNumbers);
-            // randomNumbers[i] = 0f;
         }
-
-        // Debug.Log(randomNumbers);
-
         // generate the icos basis
         float sqrt5 = Mathf.Sqrt(5);
         for (int n = 0; n < 5; n++)
@@ -136,31 +111,23 @@ public class PenroseGenerator : MonoBehaviour
         }
         icos.Add(new Vector3(0.0f, 0.0f, 1.0f));
 
-        // Debug.Log(string.Join(", ", icos));
-
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 1; j++) {
                 genChunk(new Vector3(i*8, 0, j*8));
             }
         }
 
-        
         foreach (Tile tile in rhombsToRender) {
             addRhombToMesh(tile);
         }
         rhombsToRender.Clear();
 
         deleteChunk(new Vector3(0, 0, 0));
-        
-        // prefabInstance.GetComponent<MeshRenderer>().enabled = false;
-
     }
 
     // Update is called once per frame
     void Update()
     {
-        // return; 
-        // Debug.Log("SHOULD NOT PRINT");
         Camera playerCamera = GameObject.Find("Player Camera").GetComponent<Camera>();
 
         Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
@@ -169,23 +136,18 @@ public class PenroseGenerator : MonoBehaviour
         float closestDistance = float.MaxValue;
 
         RaycastHit[] hits = Physics.RaycastAll(ray);
-        foreach (RaycastHit hit in hits)
-        {
-            if (hit.distance < closestDistance)
-            {
+        foreach (RaycastHit hit in hits) {
+            if (hit.distance < closestDistance) {
                 closestHit = hit;
                 closestDistance = hit.distance;
             }
         }
         MeshCollider meshCollider = closestHit.collider as MeshCollider;
 
-        if (hits.Length == 0 || meshCollider == null)
-        {
-            // Debug.Log("OOF");
+        if (hits.Length == 0 || meshCollider == null) {
+            previewBlock.GetComponent<LineRenderer>().positionCount = 0;
             return;
         }
-
-        // Vector3 offset = -.2f * playerCamera.transform.forward; 
 
         Mesh m = meshCollider.sharedMesh;
 
@@ -236,6 +198,8 @@ public class PenroseGenerator : MonoBehaviour
             t = t2;
             t2 = temp;
         }
+
+        addWireRhomb(t.vertices, previewBlock);
 
         if (Input.GetMouseButtonDown(1)) {
             addRhombToMesh(t);
@@ -800,7 +764,13 @@ public class PenroseGenerator : MonoBehaviour
             vertices[i] = new Vector3(chunk.x + (i & 1) * 8, chunk.y + (i >> 1 & 1) * 8, chunk.z + (i >> 2 & 1) * 8);
         }
 
+        addWireRhomb(vertices, gameObject);
+    }
+
+    void addWireRhomb(Vector3[] vertices, GameObject obj) {
         // Connect the vertices to form the wireframe box.
+        LineRenderer lineRenderer = obj.GetComponent<LineRenderer>();
+
         lineRenderer.positionCount = 16;
         lineRenderer.SetPosition(0, vertices[0]);
         lineRenderer.SetPosition(1, vertices[1]);
@@ -824,6 +794,7 @@ public class PenroseGenerator : MonoBehaviour
 
         lineRenderer.SetPosition(15, vertices[4]);
     }
+
     Vector3 RoundToNearestHundredth(Vector3 vector)
     {
         int roundVal = 100;
