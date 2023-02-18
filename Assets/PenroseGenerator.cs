@@ -81,6 +81,12 @@ public class PenroseGenerator : MonoBehaviour
 
         meshRenderer.material = white_material;
 
+        PhysicMaterial surfaceMaterial = new PhysicMaterial();
+        surfaceMaterial.staticFriction = 1.0f;
+        surfaceMaterial.dynamicFriction = 0.1f;
+        surfaceMaterial.bounciness = 0.0f;
+        meshCollider.material = surfaceMaterial;
+
         debugPlanes = false;
         showRhombs = true;
         loadedChunk.Add(new GameObject());
