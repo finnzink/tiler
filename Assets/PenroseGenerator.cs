@@ -36,10 +36,11 @@ public class PenroseGenerator : MonoBehaviour
     // third is the position of the face in the triangles array, so it can be added / deleted from the global mesh
     public Dictionary<Vector3, ((Tile, Tile), (Vector3, Vector3), (int, int))> faceMap = new Dictionary<Vector3, ((Tile, Tile), (Vector3, Vector3), (int, int))>();
     public List<Vector3> icos = new List<Vector3>();
-    public List<Tile> tiles = new List<Tile>();
+    public Tile[] tiles;
     public GameObject terrainObj;
     public GameObject spherePrefab;
     public GameObject spherePrefab2;
+    public List<int> freeChunks;
     public List<int> freeTriangles;
     public List<GameObject> loadedChunk;
     public GameObject previewBlock;
@@ -58,7 +59,7 @@ public class PenroseGenerator : MonoBehaviour
     public int num_chunks;
     public int pos;
 
-    public Dictionary<Vector3, (int, int)> chunkToTileRange = new Dictionary<Vector3, (int, int)>();
+    public Dictionary<Vector3, int> chunkToTileRange = new Dictionary<Vector3, int>();
     public List<Tile> rhombsToRender = new List<Tile>();
 
     // Start is called before the first frame update
@@ -68,6 +69,7 @@ public class PenroseGenerator : MonoBehaviour
         pos = 0;
         globalVertices= new Vector3[0];
         globalNormals= new Vector3[0];
+        tiles = new Tile[0];
         globalMesh = new Mesh();
         currVertex = 0;
 
@@ -130,7 +132,7 @@ public class PenroseGenerator : MonoBehaviour
         }
         rhombsToRender.Clear();
 
-        deleteChunk(new Vector3(0, 0, 0));
+        // deleteChunk(new Vector3(0, 0, 0));
     }
 
     // Update is called once per frame
@@ -221,11 +223,20 @@ public class PenroseGenerator : MonoBehaviour
     }
 
     public void genChunk(Vector3 chunk) {
-        // add 7000 empty vector3's to the end of the arrays
-        System.Array.Resize(ref globalNormals, globalNormals.Length + 7000);
-        System.Array.Resize(ref globalVertices, globalVertices.Length + 7000);
+        int chunkIndex;
+        int addIndex = 0;
 
-        chunkToTileRange.Add(chunk, (tiles.Count, -1));
+        if (freeChunks.Count == 0) {
+            chunkIndex = globalNormals.Length / 7000;
+            // add 7000 empty vector3's to the end of the arrays
+            System.Array.Resize(ref globalNormals, globalNormals.Length + 7000);
+            System.Array.Resize(ref globalVertices, globalVertices.Length + 7000);
+            System.Array.Resize(ref tiles, tiles.Length + 7000);
+        } else {
+            chunkIndex = freeChunks[0];
+            freeChunks.RemoveAt(0);
+        }
+
         Debug.Log("GENERATING NEW CHUNK" + string.Join(",", chunk));
         Debug.Log("RANDS: " + string.Join(",", randomNumbers));
         int yFunk = 0;
@@ -320,8 +331,25 @@ public class PenroseGenerator : MonoBehaviour
                                     // if (k == 4 && l == 4 && m == 4) {
                                     //     centroid = position[0];
                                     // }
+                                    // double fofilter = 8;
+                                    double fofilter = 8;
+                                    Vector3 COI = chunk;
 
-                                    addRhombToTiles(position, chunk);
+                                    // calc center of rhomb
+                                    Vector3 center = new Vector3(0, 0, 0);
+                                    for (int a = 0; a < 8; a++) {
+                                        center += position[a];
+                                    }
+                                    center /= 8;
+
+                                    if (center[0] < COI[0] || center[0] > COI[0] + fofilter
+                                        || center[1] < COI[1] || center[1] > COI[1] + fofilter
+                                        || center[2] < COI[2] || center[2] > COI[2] + fofilter) {
+                                        continue;
+                                    }
+
+                                    addRhombToTiles(position, chunk, chunkIndex, addIndex);
+                                    addIndex++;
                                     
                                 }   
                             }
@@ -334,7 +362,7 @@ public class PenroseGenerator : MonoBehaviour
         globalMesh.vertices = globalVertices;
         globalMesh.normals = globalNormals;
 
-        chunkToTileRange[chunk] = (chunkToTileRange[chunk].Item1, tiles.Count);
+        chunkToTileRange.Add(chunk, chunkIndex);
 
         renderChunk(chunk);
 
@@ -360,7 +388,7 @@ public class PenroseGenerator : MonoBehaviour
     }
 
     // this method should really only 1. flip vertices 2. add to faceMap 3. call addRhomb
-    void addRhombToTiles(Vector3[] vertices, Vector3 chunk) {
+    void addRhombToTiles(Vector3[] vertices, Vector3 chunk, int chunkIndex, int addIndex) {
         // MeshFilter meshFilter = GetComponent<MeshFilter>();
         Mesh mesh = new Mesh();
         // meshFilter.mesh = mesh;
@@ -403,15 +431,7 @@ public class PenroseGenerator : MonoBehaviour
             mesh.vertices = tempVerts;
         }
 
-        // double fofilter = 8;
-        double fofilter = 8;
-        Vector3 COI = chunk;
-
-        if (center[0] < COI[0] || center[0] > COI[0] + fofilter
-            || center[1] < COI[1] || center[1] > COI[1] + fofilter
-            || center[2] < COI[2] || center[2] > COI[2] + fofilter) {
-            return;
-        }
+        
 
         int[] triangles = new int[]
         {
@@ -440,13 +460,13 @@ public class PenroseGenerator : MonoBehaviour
         // pos needs to be
         Tile curr = new Tile(new Vector3(0,0,0), null, mesh.vertices, null, 0, new Dictionary<Vector3,int>(), false);
         double fofofilter = 4;
-        if (center[0] < COI[0] + fofofilter && center[0] > COI[0] 
-            && center[1] < COI[1] + fofofilter && center[1] > COI[1]
-            && center[2] < COI[2] + fofofilter && center[2] > COI[2]) {
+        if (center[0] < chunk[0] + fofofilter && center[0] > chunk[0] 
+            && center[1] < chunk[1] + fofofilter && center[1] > chunk[1]
+            && center[2] < chunk[2] + fofofilter && center[2] > chunk[2]) {
             curr.filled = true;
             rhombsToRender.Add(curr);
         }
-        tiles.Add(curr);
+        tiles[(chunkIndex*7000) + addIndex] = curr;
 
         for (int i = 0; i < triangles.Length; i+=6 ) {
             Vector3 key = RoundToNearestHundredth(mesh.vertices[triangles[i]] + mesh.vertices[triangles[i+1]] + mesh.vertices[triangles[i+2]] + mesh.vertices[triangles[i+5]]);
@@ -468,11 +488,10 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
         for (int i = 0; i < 8; i++) {
-            globalVertices[(currVertex*8) + i] = mesh.vertices[i];
-            globalNormals[(currVertex*8) + i] = mesh.normals[i];
+            globalVertices[(chunkIndex*7000) + (addIndex*8) + i] = mesh.vertices[i];
+            globalNormals[(chunkIndex*7000) + (addIndex*8) + i] = mesh.normals[i];
         }
-        curr.pos = currVertex; 
-        currVertex += 1; 
+        curr.pos = (chunkIndex*7000) + (addIndex*8);
     }
 
     // for adding tiles, how to know vertices index?
@@ -547,7 +566,7 @@ public class PenroseGenerator : MonoBehaviour
                     newTriangles[i] = currMesh.triangles[i];
                 } else {
                     if ((j %6) == 0) {toAdd.tris_in_mesh.Add(keys[j/6], i);}
-                    newTriangles[i] = trianglesToAdd[j] + (toAdd.pos * 8);
+                    newTriangles[i] = trianglesToAdd[j] + (toAdd.pos);
                     // Debug.Log(toAdd.pos);
                     j++;
                 }
@@ -558,7 +577,7 @@ public class PenroseGenerator : MonoBehaviour
                 // if (newTriangles[freeTriangles[0]] != 0) {Debug.Log("PROBLEM!");}
                 // Debug.Log("adding index " + freeTriangles[0]);
                 if ((i %6) == 0) {toAdd.tris_in_mesh.Add(keys[i/6], freeTriangles[0]);}
-                newTriangles[freeTriangles[0]] = trianglesToAdd[i] + (toAdd.pos * 8);
+                newTriangles[freeTriangles[0]] = trianglesToAdd[i] + (toAdd.pos);
                 freeTriangles.RemoveAt(0);
             }
         }
@@ -632,7 +651,7 @@ public class PenroseGenerator : MonoBehaviour
                 keyTrack.Add(key);
                 // neighbor.tris_in_mesh.Add(key, pretrianglesToAdd.Count + currMesh.triangles.Length);
                 for (int h = 0; h < 6; h++) {
-                    pretrianglesToAdd.Add((triangles[tri+h]) + (neighbor.pos*8));
+                    pretrianglesToAdd.Add((triangles[tri+h]) + (neighbor.pos));
                 }
             }
 
@@ -684,24 +703,19 @@ public class PenroseGenerator : MonoBehaviour
 
     void deleteChunk(Vector3 chunk) {
         // delete tiles array, and call delete on each tile
-        for (int i = chunkToTileRange[chunk].Item1; i < chunkToTileRange[chunk].Item2; i++) {
+        for (int i = (chunkToTileRange[chunk] * 7000); i < (chunkToTileRange[chunk]*7000) + 7000; i++) {
             if (tiles[i].filled) {deleteRhombFromMesh(tiles[i]);}
         }
 
-        tiles.RemoveRange(chunkToTileRange[chunk].Item1, chunkToTileRange[chunk].Item2 - 1); // change to delete all the tile objects too.
+        // tiles.RemoveRange(chunkToTileRange[chunk].Item1, chunkToTileRange[chunk].Item2 - 1); // change to delete all the tile objects too.
         
-        List<Vector3> keysToModify = new List<Vector3>();
-        int delta = chunkToTileRange[chunk].Item2 - chunkToTileRange[chunk].Item1;
-        foreach (Vector3 key in chunkToTileRange.Keys) {
-            if (chunkToTileRange[key].Item1 > chunkToTileRange[chunk].Item1) {
-                keysToModify.Add(key);
-            }
-        }
+        freeChunks.Add(chunkToTileRange[chunk] * 7000);
         chunkToTileRange.Remove(chunk);
 
-        foreach (Vector3 key in keysToModify) {
-            chunkToTileRange[key] = (chunkToTileRange[key].Item1 - delta, chunkToTileRange[key].Item2 - delta);
-        }
+
+        // foreach (Vector3 key in keysToModify) {
+        //     chunkToTileRange[key] = (chunkToTileRange[key].Item1 - delta, chunkToTileRange[key].Item2 - delta);
+        // }
     }
 
     void renderPlane(Plane plane, bool side) {
@@ -738,8 +752,6 @@ public class PenroseGenerator : MonoBehaviour
 
         // Rotate the square GameObject to align with the Plane's normal vector
         square.transform.rotation = Quaternion.FromToRotation(Vector3.up, plane.normal);
-
-        
 
         // Scale the square GameObject to have a length of n
         square.transform.localScale = new Vector3(length, length, length);
