@@ -136,7 +136,7 @@ public class PlayerMovement : MonoBehaviour
             moveDirection = moveDirection.normalized * moveSpeed * 5 * Time.deltaTime;
             transform.position += moveDirection;
 
-        } else {
+        } else { // zero intersections
             float moveX = Input.GetAxis("Horizontal");
             float moveZ = Input.GetAxis("Vertical");
 
@@ -161,14 +161,14 @@ public class PlayerMovement : MonoBehaviour
                 transform.position = newPos;
                 startingSnap = false;
             } else if (posPts[1] != Vector3.zero) {
-                // Debug.Log("midbumped");
+                Debug.Log("midbumped");
                 if (climbPoint == Vector3.zero) {climbPoint = posPts[1];}
-                if (oldPosPts[0] != Vector3.zero) {maxClimb = oldPosPts[0];}
-                if (oldPosPts[2] != Vector3.zero) {minClimb = oldPosPts[2];}
-                Vector3 propPos = new Vector3(transform.position.x, transform.position.y + (moveZ == 0 ? 0 : Mathf.Sign(moveZ)) * moveSpeed * .5f * Time.deltaTime, transform.position.z);
+                if (oldPosPts[0] != Vector3.zero && Mathf.Abs(climbPoint.y - oldPosPts[0].y) > .2) {maxClimb = oldPosPts[0];}
+                if (oldPosPts[2] != Vector3.zero && Mathf.Abs(climbPoint.y - oldPosPts[0].y) > .2) {minClimb = oldPosPts[2];}
+                Vector3 propPos = new Vector3(transform.position.x, transform.position.y + (moveZ == 0 ? 0 : Mathf.Sign(moveZ)) * moveSpeed * Time.deltaTime, transform.position.z);
                 bool wontHitCeil = (maxClimb == Vector3.zero || propPos.y + 1 < maxClimb.y);
                 bool wontHitFloor = (minClimb == Vector3.zero || propPos.y - 1 > minClimb.y);
-                bool wontExceedClimbPt = (propPos.y - 1 < climbPoint.y && propPos.y + 1 > climbPoint.y);
+                bool wontExceedClimbPt = (propPos.y - 1.05 < climbPoint.y && propPos.y + 1.05 > climbPoint.y);
                 if (wontHitCeil && wontHitFloor && wontExceedClimbPt) {
                     transform.position = propPos;
                 }
@@ -188,12 +188,12 @@ public class PlayerMovement : MonoBehaviour
                     if (oldPosPts[0] != Vector3.zero) {climbPoint = oldPosPts[0];}
                     if (oldPosPts[2] != Vector3.zero) {climbPoint = oldPosPts[2];}
                 } 
-                if (posPts[0] != Vector3.zero) {maxClimb = posPts[0];}
-                if (posPts[2] != Vector3.zero) {minClimb = posPts[2];}
-                Vector3 propPos = new Vector3(transform.position.x, transform.position.y + (moveZ == 0 ? 0 : Mathf.Sign(moveZ)) * moveSpeed * .5f * Time.deltaTime, transform.position.z);
-                bool wontHitCeil = (maxClimb == Vector3.zero || propPos.y + 1 < maxClimb.y);
-                bool wontHitFloor = (minClimb == Vector3.zero || propPos.y - 1 > minClimb.y);
-                bool wontExceedClimbPt = (propPos.y - 1 < climbPoint.y && propPos.y + 1 > climbPoint.y);
+                if (posPts[0] != Vector3.zero && Mathf.Abs(climbPoint.y - posPts[0].y) > .2) {maxClimb = posPts[0];}
+                if (posPts[2] != Vector3.zero && Mathf.Abs(climbPoint.y - posPts[2].y) > .2) {minClimb = posPts[2];}
+                Vector3 propPos = new Vector3(transform.position.x, transform.position.y + (moveZ == 0 ? 0 : Mathf.Sign(moveZ)) * moveSpeed * Time.deltaTime, transform.position.z);
+                bool wontHitCeil = (maxClimb == Vector3.zero || propPos.y + .9 < maxClimb.y);
+                bool wontHitFloor = (minClimb == Vector3.zero || propPos.y - .9 > minClimb.y);
+                bool wontExceedClimbPt = (propPos.y - 1.1 < climbPoint.y && propPos.y + 1.1 > climbPoint.y);
                 if (wontHitCeil && wontHitFloor && wontExceedClimbPt) {
                     transform.position = propPos;
                 }
