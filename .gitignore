@@ -3,3 +3,5 @@ Library/
 
 # Ignore the Unity Temp folder
 Temp/
+
+UserSettings/

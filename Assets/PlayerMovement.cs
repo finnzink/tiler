@@ -21,6 +21,8 @@ public class PlayerMovement : MonoBehaviour
     public float[] basisOffset = new float[6];
     public bool physicsOn = false;
     public Vector3 climbPoint = new Vector3();
+    public Vector3 minClimb = new Vector3();
+    public Vector3 maxClimb = new Vector3();
 
     private Rigidbody rb;
     private bool isGrounded;
@@ -152,38 +154,49 @@ public class PlayerMovement : MonoBehaviour
             // Debug.Log("yooooo1");
             Vector3[] posPts = getCollisionPoints(head, tail);
             Vector3[] oldPosPts = getCollisionPoints(old_head, old_tail);
-            // Debug.Log("yooooo");
-            // Debug.Log("length: " + posPts.Length);
-            // for (int i = 0; i < posPts.Length; i++) {
-            //     Debug.Log("Element " + i + ": " + posPts[i]);
-            // }
-            
-            // the below is temporary, just a waypoint
+
             if (startingSnap) {
                 Debug.Log("snapping to " + posPts[2].y);
                 newPos.y = posPts[3].y + 1;
                 transform.position = newPos;
                 startingSnap = false;
             } else if (posPts[1] != Vector3.zero) {
-                Debug.Log("midbumped");
-                // if (headBump != Vector3.zero) {
-                //     transform.position = new Vector3(transform.position.x, transform.position.y + (moveZ > 0 ? 0 : Mathf.Sign(moveZ)) * moveSpeed * .5f * Time.deltaTime, transform.position.z);
-                // } else if (tailBump != Vector3.zero) {
-                //     transform.position = new Vector3(transform.position.x, transform.position.y + (moveZ < 0 ? 0 : Mathf.Sign(moveZ)) * moveSpeed * .5f * Time.deltaTime, transform.position.z);
-                //     Debug.Log(moveZ);
-                // } else {
-                //     transform.position = new Vector3(transform.position.x, transform.position.y + (moveZ == 0 ? 0 : Mathf.Sign(moveZ)) * moveSpeed * .5f * Time.deltaTime, transform.position.z);
-                // }
+                // Debug.Log("midbumped");
+                if (climbPoint == Vector3.zero) {climbPoint = posPts[1];}
+                if (oldPosPts[0] != Vector3.zero) {maxClimb = oldPosPts[0];}
+                if (oldPosPts[2] != Vector3.zero) {minClimb = oldPosPts[2];}
+                Vector3 propPos = new Vector3(transform.position.x, transform.position.y + (moveZ == 0 ? 0 : Mathf.Sign(moveZ)) * moveSpeed * .5f * Time.deltaTime, transform.position.z);
+                bool wontHitCeil = (maxClimb == Vector3.zero || propPos.y + 1 < maxClimb.y);
+                bool wontHitFloor = (minClimb == Vector3.zero || propPos.y - 1 > minClimb.y);
+                bool wontExceedClimbPt = (propPos.y - 1 < climbPoint.y && propPos.y + 1 > climbPoint.y);
+                if (wontHitCeil && wontHitFloor && wontExceedClimbPt) {
+                    transform.position = propPos;
+                }
             } else if (posPts[0] != Vector3.zero) {
                 if (posPts[2] != Vector3.zero) {return;}
                 Debug.Log("head bump");
                 newPos.y = posPts[0].y - 1;
                 transform.position = newPos;
+                climbPoint = minClimb = maxClimb = Vector3.zero;
             } else if (posPts[2] != Vector3.zero) {
                 // Debug.Log("tail bump");
                 newPos.y = posPts[2].y + 1;
                 transform.position = newPos;
+                climbPoint = minClimb = maxClimb = Vector3.zero;
             } else { // needs to support empty space
+                if (climbPoint == Vector3.zero) { 
+                    if (oldPosPts[0] != Vector3.zero) {climbPoint = oldPosPts[0];}
+                    if (oldPosPts[2] != Vector3.zero) {climbPoint = oldPosPts[2];}
+                } 
+                if (posPts[0] != Vector3.zero) {maxClimb = posPts[0];}
+                if (posPts[2] != Vector3.zero) {minClimb = posPts[2];}
+                Vector3 propPos = new Vector3(transform.position.x, transform.position.y + (moveZ == 0 ? 0 : Mathf.Sign(moveZ)) * moveSpeed * .5f * Time.deltaTime, transform.position.z);
+                bool wontHitCeil = (maxClimb == Vector3.zero || propPos.y + 1 < maxClimb.y);
+                bool wontHitFloor = (minClimb == Vector3.zero || propPos.y - 1 > minClimb.y);
+                bool wontExceedClimbPt = (propPos.y - 1 < climbPoint.y && propPos.y + 1 > climbPoint.y);
+                if (wontHitCeil && wontHitFloor && wontExceedClimbPt) {
+                    transform.position = propPos;
+                }
             }
             startingSnap = false;
             // physicsOn = !physicsOn;
