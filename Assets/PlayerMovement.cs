@@ -5,6 +5,8 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     public GameObject terrainGenator;
+    public GameObject spherePrefab;
+    public GameObject instantiatedSphere;
     private PenroseGenerator script1;
     public GameObject cam;
     public List<Vector3> icos = new List<Vector3>();
@@ -18,16 +20,21 @@ public class PlayerMovement : MonoBehaviour
     public Vector3 currChunk = new Vector3(0, 0, 0);
     public float[] basisOffset = new float[6];
     public bool physicsOn = false;
+    public Vector3 climbPoint = new Vector3();
 
     private Rigidbody rb;
     private bool isGrounded;
     private bool startingSnap;
+    private bool climbing;
 
     void Start()
     {
+        instantiatedSphere = GameObject.Instantiate(spherePrefab);
+        instantiatedSphere.name = "head";
+        climbing = false;
         startingSnap = true;
         script1 = terrainGenator.GetComponent<PenroseGenerator>();
-        moveSpeed = 2f;
+        moveSpeed = .5f;
         cam = GameObject.Find("Player Camera");
         if (cam == null) {
             Debug.Log("can't find camera");
@@ -132,58 +139,51 @@ public class PlayerMovement : MonoBehaviour
             float moveZ = Input.GetAxis("Vertical");
 
             Vector3 moveDirection = rotation * (new Vector3(moveX, 0f, moveZ));
-            moveDirection = moveDirection.normalized * moveSpeed * 5 * Time.deltaTime;
+            moveDirection = moveDirection.normalized * moveSpeed * 2 * Time.deltaTime;
             Vector3 newPos = transform.position + moveDirection;
 
-            Vector3 head = newPos;
-            Vector3 tail = head - new Vector3(0, -2, 0);
+            Vector3 old_head = transform.position + new Vector3(0,1,0);
+            Vector3 old_tail = old_head - new Vector3(0, 2, 0);
 
-            // Debug.Log(head);
+            Vector3 head = newPos + new Vector3(0,1,0);
+            Vector3 tail = head - new Vector3(0, 2, 0);
 
-            // get intersections with mesh
-            MeshCollider collider = script1.terrainObj.GetComponent<MeshCollider>();
-            
-            if (collider == null) {
-                Debug.Log("collider not set correctly");
-            }
-            
-            Vector3 direction_down = new Vector3(0, -2, 0);
-            Vector3 direction_up = new Vector3(0, 1, 0);
-
-            // Cast a ray from head in the direction of the line segment
-            Ray head_ray = new Ray(head, direction_down);
-            Ray up_ray = new Ray(head, direction_up);
-            RaycastHit[] down_hits = Physics.RaycastAll(head_ray);
-            RaycastHit[] up_hits = Physics.RaycastAll(head_ray);
-
-            // Find all intersection points with the collider
-            List<Vector3> inner_intersections = new List<Vector3>();
-            Vector3 above_head = new Vector3(); 
-            Vector3 below_head = new Vector3();
-            foreach (RaycastHit hit in down_hits) {
-                if (hit.collider == collider && head.y - hit.point.y < 2 ) {
-                    // This hit is with the desired collider, so add the intersection point to the list
-                    inner_intersections.Add(hit.point);
-                }
-                else if (hit.collider == collider) {
-                    below_head = hit.point;
-                    break;
-                }
-            }
-
-            if (up_hits.Length > 0) {
-                above_head = up_hits[0].point;
-            }
+            instantiatedSphere.GetComponent<Transform>().position = tail;
+            // Debug.Log("yooooo1");
+            Vector3[] posPts = getCollisionPoints(head, tail);
+            Vector3[] oldPosPts = getCollisionPoints(old_head, old_tail);
+            // Debug.Log("yooooo");
+            // Debug.Log("length: " + posPts.Length);
+            // for (int i = 0; i < posPts.Length; i++) {
+            //     Debug.Log("Element " + i + ": " + posPts[i]);
+            // }
             
             // the below is temporary, just a waypoint
-            if (inner_intersections.Count > 0) { // 
-                newPos.y = inner_intersections[inner_intersections.Count - 1].y + 1;
+            if (startingSnap) {
+                Debug.Log("snapping to " + posPts[2].y);
+                newPos.y = posPts[3].y + 1;
                 transform.position = newPos;
-
-            } else if (below_head != Vector3.zero && (startingSnap || tail.y - below_head.y < .1)){ // second part is to check for cliff
-                newPos.y = below_head.y + 1;
+                startingSnap = false;
+            } else if (posPts[1] != Vector3.zero) {
+                Debug.Log("midbumped");
+                // if (headBump != Vector3.zero) {
+                //     transform.position = new Vector3(transform.position.x, transform.position.y + (moveZ > 0 ? 0 : Mathf.Sign(moveZ)) * moveSpeed * .5f * Time.deltaTime, transform.position.z);
+                // } else if (tailBump != Vector3.zero) {
+                //     transform.position = new Vector3(transform.position.x, transform.position.y + (moveZ < 0 ? 0 : Mathf.Sign(moveZ)) * moveSpeed * .5f * Time.deltaTime, transform.position.z);
+                //     Debug.Log(moveZ);
+                // } else {
+                //     transform.position = new Vector3(transform.position.x, transform.position.y + (moveZ == 0 ? 0 : Mathf.Sign(moveZ)) * moveSpeed * .5f * Time.deltaTime, transform.position.z);
+                // }
+            } else if (posPts[0] != Vector3.zero) {
+                if (posPts[2] != Vector3.zero) {return;}
+                Debug.Log("head bump");
+                newPos.y = posPts[0].y - 1;
                 transform.position = newPos;
-
+            } else if (posPts[2] != Vector3.zero) {
+                // Debug.Log("tail bump");
+                newPos.y = posPts[2].y + 1;
+                transform.position = newPos;
+            } else { // needs to support empty space
             }
             startingSnap = false;
             // physicsOn = !physicsOn;
@@ -211,5 +211,48 @@ public class PlayerMovement : MonoBehaviour
             
             // script1.genChunk(newChunk);
         }
+    }
+
+    // this returns an array with 3 values: head collision, mid collision, tail collision. Will be zero if none are found 
+    Vector3[] getCollisionPoints(Vector3 head, Vector3 tail) {
+        // Debug.Log("getting collisions");
+        Vector3[] to_return = new Vector3[4];
+        // get intersections with mesh
+        MeshCollider collider = script1.terrainObj.GetComponent<MeshCollider>();
+        
+        Vector3 direction_down = new Vector3(0, -2, 0);
+        Vector3 direction_up = new Vector3(0, 1, 0);
+
+        // Cast a ray from head in the direction of the line segment
+        Ray head_ray = new Ray(head, direction_down);
+        Ray up_ray = new Ray(tail, direction_up);
+        RaycastHit[] down_hits = Physics.RaycastAll(head_ray);
+        RaycastHit[] up_hits = Physics.RaycastAll(up_ray);
+
+        foreach (RaycastHit hit in down_hits) {
+            if (hit.collider != collider) {continue;}
+            if (head.y - hit.point.y < .1 ) {
+                to_return[0] = hit.point;
+            } else if (Mathf.Abs(hit.point.y - tail.y) < .1) {
+                to_return[2] = hit.point;
+            } else if (head.y - hit.point.y < 2) {
+                to_return[1] = hit.point;
+            } else {
+                to_return[3] = hit.point;
+            }
+        }
+
+        foreach (RaycastHit hit in up_hits) {
+            if (hit.collider != collider) {continue;}
+            if (hit.point.y - tail.y < .1 ) {
+                to_return[2] = hit.point;
+            } else if (Mathf.Abs(hit.point.y - head.y) < .1) {
+                to_return[0] = hit.point;
+            } else if (hit.point.y - tail.y < 2) {
+                to_return[1] = hit.point;
+            }
+        }
+        return to_return;
+
     }
 }

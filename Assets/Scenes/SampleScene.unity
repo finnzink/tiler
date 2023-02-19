@@ -389,7 +389,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1077756980}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 10, y: 5, z: 2}
   m_LocalScale: {x: 0.1, y: 2, z: 0.1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -427,8 +427,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d159224bdc3544268a620e8953bb539, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  terrainGenator: {fileID: 0}
-  cam: {fileID: 0}
+  terrainGenator: {fileID: 1479638291}
+  spherePrefab: {fileID: 1568406306}
+  instantiatedSphere: {fileID: 0}
+  cam: {fileID: 1516372031}
   icos: []
   moveSpeed: 5
   jumpForce: 10
@@ -445,6 +447,7 @@ MonoBehaviour:
   - 0
   - 0
   physicsOn: 0
+  climbPoint: {x: 0, y: 0, z: 0}
 --- !u!1 &1479638291
 GameObject:
   m_ObjectHideFlags: 0
@@ -518,7 +521,6 @@ MonoBehaviour:
   loadedChunk:
   - {fileID: 0}
   previewBlock: {fileID: 0}
-  mesh: {fileID: 0}
   randomNumbers:
   - 0
   - 0
@@ -678,7 +680,7 @@ Transform:
   m_GameObject: {fileID: 1516372031}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0.5, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1077756984}

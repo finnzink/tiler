@@ -90,7 +90,7 @@ public class PenroseGenerator : MonoBehaviour
 
         debugPlanes = false;
         showRhombs = true;
-        previewOn = true;
+        previewOn = false;
         loadedChunk.Add(new GameObject());
         // mesh = new Mesh();
 
