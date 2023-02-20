@@ -132,7 +132,7 @@ public class PenroseGenerator : MonoBehaviour
         }
         rhombsToRender.Clear();
 
-        // deleteChunk(new Vector3(0, 0, 0));
+        deleteChunk(new Vector3(0, 0, 0));
     }
 
     // Update is called once per frame
@@ -239,7 +239,7 @@ public class PenroseGenerator : MonoBehaviour
 
         Debug.Log("GENERATING NEW CHUNK" + string.Join(",", chunk));
         Debug.Log("RANDS: " + string.Join(",", randomNumbers));
-        int yFunk = 0;
+
         int p = 8; // number of parallel planes
         Plane[,] planes = new Plane[6, p];
 
@@ -298,9 +298,6 @@ public class PenroseGenerator : MonoBehaviour
                                     if (debugPlanes) {
                                     Instantiate(spherePrefab, intersection, Quaternion.identity);
                                     }
-
-                                    // check if intersection is within chunk
-                                    bool outside = false;
 
                                     points.Add(intersection);
                                     
@@ -402,7 +399,6 @@ public class PenroseGenerator : MonoBehaviour
         center /= 8;
 
         // testing if flipped
-        bool testflip = false;
 
         Vector3 edge1 = vertices[1] - vertices[0];
         Vector3 edge2 = vertices[5] - vertices[0];
@@ -415,7 +411,6 @@ public class PenroseGenerator : MonoBehaviour
         if (dotProduct > 0)
         {
             // Debug.Log("Normals are pointing towards each other");
-            testflip = true;
             // Instantiate(spherePrefab2, center, Quaternion.identity);
 
             Vector3[] tempVerts = mesh.vertices;
@@ -641,15 +636,9 @@ public class PenroseGenerator : MonoBehaviour
                 tri = faceMap[key].Item3.Item1;
             }
 
-            // if (neighbor == null) {
-            //     Debug.Log("neighbor null?");
-            //     return;
-            // }
-
             if (neighbor != null && neighbor.filled == true) {
                 tilesTrack.Add(neighbor);
                 keyTrack.Add(key);
-                // neighbor.tris_in_mesh.Add(key, pretrianglesToAdd.Count + currMesh.triangles.Length);
                 for (int h = 0; h < 6; h++) {
                     pretrianglesToAdd.Add((triangles[tri+h]) + (neighbor.pos));
                 }
@@ -667,9 +656,7 @@ public class PenroseGenerator : MonoBehaviour
         
         if (trianglesToAdd.Length > freeTriangles.Count) {
             newTriangles = new int[currMesh.triangles.Length + (trianglesToAdd.Length)];
-
             // add triangles
-            int j =0;
             for (int i = 0; i < newTriangles.Length; i++) {
                 if (i < currMesh.triangles.Length) {
                     newTriangles[i] = currMesh.triangles[i];
@@ -680,8 +667,6 @@ public class PenroseGenerator : MonoBehaviour
         } else {
             newTriangles = currMesh.triangles;
             for (int i = 0; i < trianglesToAdd.Length; i++) {
-                // if (newTriangles[freeTriangles[0]] != 0) {Debug.Log("PROBLEM!");}
-                // Debug.Log("adding index " + freeTriangles[0]);
                 if ((i %6) == 0) {tilesTrack[i/6].tris_in_mesh.Add(keyTrack[i/6], freeTriangles[0]);}
                 newTriangles[freeTriangles[0]] = trianglesToAdd[i];
                 freeTriangles.RemoveAt(0);
@@ -702,20 +687,49 @@ public class PenroseGenerator : MonoBehaviour
     }
 
     void deleteChunk(Vector3 chunk) {
+        int[] triangles = new int[]
+        {
+            0, 2, 1, // 0, 1, 2, 3
+            1, 2, 3,
+
+            0, 1, 5, // 0, 1, 4, 5
+            0, 5, 4,
+
+            0, 4, 6, // 0, 2, 4, 6
+            0, 6, 2,
+
+            6, 5, 7, // 4, 5, 6, 7
+            5, 6, 4,
+
+            1, 3, 7, // 1, 3, 5, 7
+            1, 7, 5,
+            
+            2, 6, 3, // 2, 3, 6, 7
+            3, 6, 7,
+        };
+
         // delete tiles array, and call delete on each tile
         for (int i = (chunkToTileRange[chunk] * 7000); i < (chunkToTileRange[chunk]*7000) + 7000; i++) {
-            if (tiles[i].filled) {deleteRhombFromMesh(tiles[i]);}
+            if (tiles[i] != null && tiles[i].filled) {
+                // clear out facemap for each face:
+                for (int j = 0; j < 6; j++) {
+                    Vector3 key = RoundToNearestHundredth(tiles[i].vertices[triangles[j*6]] + tiles[i].vertices[triangles[(j*6)+1]] + tiles[i].vertices[triangles[(j*6)+2]] + tiles[i].vertices[triangles[(j*6)+5]]);
+                    if (faceMap[key].Item1.Item1 == null && faceMap[key].Item1.Item2 == null) {
+                        faceMap.Remove(key);
+                    } else if (faceMap[key].Item1.Item1 == tiles[i]) {
+                        faceMap[key] = ((null, faceMap[key].Item1.Item2), (Vector3.zero, faceMap[key].Item2.Item2), (-1, faceMap[key].Item3.Item2));
+                    } else if (faceMap[key].Item1.Item2 == tiles[i]) {
+                        faceMap[key] = ((faceMap[key].Item1.Item1, null), (faceMap[key].Item2.Item1, Vector3.zero), (faceMap[key].Item3.Item1, -1));
+                    } else {
+                        Debug.Log("facemap doesn't have the rhomb thats deleting.");
+                    }
+                }
+                deleteRhombFromMesh(tiles[i]); // could modify this so it just deletes tris in mesh.
+            }
         }
-
-        // tiles.RemoveRange(chunkToTileRange[chunk].Item1, chunkToTileRange[chunk].Item2 - 1); // change to delete all the tile objects too.
         
         freeChunks.Add(chunkToTileRange[chunk] * 7000);
         chunkToTileRange.Remove(chunk);
-
-
-        // foreach (Vector3 key in keysToModify) {
-        //     chunkToTileRange[key] = (chunkToTileRange[key].Item1 - delta, chunkToTileRange[key].Item2 - delta);
-        // }
     }
 
     void renderPlane(Plane plane, bool side) {

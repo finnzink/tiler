@@ -25,15 +25,12 @@ public class PlayerMovement : MonoBehaviour
     public Vector3 maxClimb = new Vector3();
 
     private Rigidbody rb;
-    private bool isGrounded;
     private bool startingSnap;
-    private bool climbing;
 
     void Start()
     {
         instantiatedSphere = GameObject.Instantiate(spherePrefab);
         instantiatedSphere.name = "head";
-        climbing = false;
         startingSnap = true;
         script1 = terrainGenator.GetComponent<PenroseGenerator>();
         moveSpeed = .5f;
@@ -41,18 +38,7 @@ public class PlayerMovement : MonoBehaviour
         if (cam == null) {
             Debug.Log("can't find camera");
         }
-        // rb = GetComponent<Rigidbody>();
 
-        // PhysicMaterial playerMaterial = new PhysicMaterial();
-        // playerMaterial.staticFriction = 1.0f;
-        // playerMaterial.dynamicFriction = 0.1f;
-        // playerMaterial.bounciness = 0.0f;
-        // Collider collider = GetComponent<Collider>();
-        // collider.material = playerMaterial;
-
-        // rb.constraints = RigidbodyConstraints.FreezeRotation;
-        // rb.isKinematic = true;
-        // isGrounded = true;
         Cursor.lockState = CursorLockMode.Locked;
         float sqrt5 = Mathf.Sqrt(5);
         for (int n = 0; n < 5; n++)
@@ -87,13 +73,6 @@ public class PlayerMovement : MonoBehaviour
         // + "\nBasis: " + string.Join(",", formattedStrings) 
         + "\nChunk: " + string.Join(",", currChunk)
         + "\nFPS: " + (1.0f / Time.deltaTime).ToString());
-    }
-
-    void OnCollisionEnter(Collision collision) {
-        // Set isGrounded to true if the player collides with the ground
-        // if (collision.gameObject.CompareTag("Ground")) {
-            isGrounded = true;
-        // }
     }
 
     void Update()
