@@ -60,7 +60,6 @@ public class PenroseGenerator : MonoBehaviour
     public int pos;
 
     public Dictionary<Vector3, int> chunkToTileRange = new Dictionary<Vector3, int>();
-    public List<Tile> rhombsToRender = new List<Tile>();
 
     // Start is called before the first frame update
     void Start()
@@ -127,12 +126,8 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
-        foreach (Tile tile in rhombsToRender) {
-            addRhombToMesh(tile);
-        }
-        rhombsToRender.Clear();
-
         deleteChunk(new Vector3(0, 0, 0));
+        genChunk(new Vector3(0, 0, 0));
     }
 
     // Update is called once per frame
@@ -214,10 +209,10 @@ public class PenroseGenerator : MonoBehaviour
         if (previewOn) {addWireRhomb(t.vertices, previewBlock);}
 
         if (Input.GetMouseButtonDown(1)) {
-            addRhombToMesh(t);
+            addRhombToMesh(t, true);
         }
         if (Input.GetMouseButtonDown(0)) {
-            deleteRhombFromMesh(t2);
+            deleteRhombFromMesh(t2, true);
         }
 
     }
@@ -236,6 +231,7 @@ public class PenroseGenerator : MonoBehaviour
             chunkIndex = freeChunks[0];
             freeChunks.RemoveAt(0);
         }
+        Debug.Log("using chunkIndex " + chunkIndex);
 
         Debug.Log("GENERATING NEW CHUNK" + string.Join(",", chunk));
         Debug.Log("RANDS: " + string.Join(",", randomNumbers));
@@ -356,8 +352,7 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
 
-        globalMesh.vertices = globalVertices;
-        globalMesh.normals = globalNormals;
+        
 
         chunkToTileRange.Add(chunk, chunkIndex);
 
@@ -426,8 +421,6 @@ public class PenroseGenerator : MonoBehaviour
             mesh.vertices = tempVerts;
         }
 
-        
-
         int[] triangles = new int[]
         {
             0, 2, 1, // 0, 1, 2, 3
@@ -454,13 +447,11 @@ public class PenroseGenerator : MonoBehaviour
 
         // pos needs to be
         Tile curr = new Tile(new Vector3(0,0,0), null, mesh.vertices, null, 0, new Dictionary<Vector3,int>(), false);
-        double fofofilter = 4;
-        if (center[0] < chunk[0] + fofofilter && center[0] > chunk[0] 
-            && center[1] < chunk[1] + fofofilter && center[1] > chunk[1]
-            && center[2] < chunk[2] + fofofilter && center[2] > chunk[2]) {
-            curr.filled = true;
-            rhombsToRender.Add(curr);
-        }
+        // double fofofilter = 4;
+        // if (center[0] < chunk[0] + fofofilter && center[0] > chunk[0] 
+        //     && center[1] < chunk[1] + fofofilter && center[1] > chunk[1]
+        //     && center[2] < chunk[2] + fofofilter && center[2] > chunk[2]) {
+
         tiles[(chunkIndex*7000) + addIndex] = curr;
 
         for (int i = 0; i < triangles.Length; i+=6 ) {
@@ -471,11 +462,16 @@ public class PenroseGenerator : MonoBehaviour
             // return Vector3.Cross(ab, ac).normalized;
 
             if (faceMap.ContainsKey(key)){
+                if (faceMap[key].Item1.Item1 == curr || faceMap[key].Item1.Item2 == curr) {
+                    Debug.Log("problems");
+                }
                 if (faceMap[key].Item1.Item2 != null) {
-                    Debug.Log("MORE THAN 2 FACES, MUST BE AN ERROR");
-                } else {
+                    faceMap[key] = ((curr, faceMap[key].Item1.Item2), (Vector3.Cross(ab, ac).normalized, faceMap[key].Item2.Item2), (i, faceMap[key].Item3.Item2));
+                } else if (faceMap[key].Item1.Item1 != null) {
                     faceMap[key] = ((faceMap[key].Item1.Item1, curr), (faceMap[key].Item2.Item1, Vector3.Cross(ab, ac).normalized), (faceMap[key].Item3.Item1, i));
                     // Debug.Log("adding second");
+                } else {
+                    Debug.Log("more problems");
                 }
             } else {
                 faceMap.Add(key, ((curr, null), (Vector3.Cross(ab, ac).normalized, new Vector3()), (i, -1)));
@@ -486,14 +482,22 @@ public class PenroseGenerator : MonoBehaviour
             globalVertices[(chunkIndex*7000) + (addIndex*8) + i] = mesh.vertices[i];
             globalNormals[(chunkIndex*7000) + (addIndex*8) + i] = mesh.normals[i];
         }
+        globalMesh.vertices = globalVertices;
+        globalMesh.normals = globalNormals;
+
         curr.pos = (chunkIndex*7000) + (addIndex*8);
+
+        if (center[1] < 2) {
+            curr.filled = true;
+            addRhombToMesh(curr, false);
+        }
     }
 
     // for adding tiles, how to know vertices index?
     // --> vertices should be added by default to the mesh.vertices as soon as the tile is generated even if tile isn't filled.
     // --> from there, the Tile object can store the index of its vertices in the mesh, rather than in an array in the object itself
 
-    void addRhombToMesh(Tile toAdd) {
+    void addRhombToMesh(Tile toAdd, bool debug) {
         toAdd.filled = true;
         // check each of the six faces to see if the corresponding neighbor tiles are sharing a face that is in the mesh (using faceMap and Tile.tris_in_mesh)
         // if so, that means that face needs to be deleted from the mesh (so mesh's triangles assoc with the face are modified to 0,0,0 and freeTriangles is updated)
@@ -579,6 +583,7 @@ public class PenroseGenerator : MonoBehaviour
 
         // delete triangles, replace with 0's
         for (int i = 0; i < trianglesToDel.Count; i++) {
+            if (debug) {Debug.Log("DELETED TRIANGLE");}
             // Debug.Log("deleting index " + trianglesToDel[i]);
             newTriangles[trianglesToDel[i]] = 0;
             freeTriangles.Add(trianglesToDel[i]);
@@ -590,7 +595,7 @@ public class PenroseGenerator : MonoBehaviour
         terrainObj.GetComponent<MeshCollider>().sharedMesh = globalMesh;
     }
 
-    void deleteRhombFromMesh(Tile toAdd) {
+    void deleteRhombFromMesh(Tile toAdd, bool debug) {
         toAdd.filled = false;
         // check each of the six faces to see if the corresponding neighbor is filled (using faceMap and Tile.filled)
         // if so, that means the corresponding face needs to be added to the mesh
@@ -656,13 +661,14 @@ public class PenroseGenerator : MonoBehaviour
         
         if (trianglesToAdd.Length > freeTriangles.Count) {
             newTriangles = new int[currMesh.triangles.Length + (trianglesToAdd.Length)];
-            // add triangles
+            // add triangles // NEED TO UPDATE tris_in_mesh!!!!
             for (int i = 0; i < newTriangles.Length; i++) {
                 if (i < currMesh.triangles.Length) {
                     newTriangles[i] = currMesh.triangles[i];
                 } else {
                     newTriangles[i] = trianglesToAdd[i - currMesh.triangles.Length];
                 }
+                if ((i %6) == 0) {tilesTrack[i/6].tris_in_mesh.Add(keyTrack[i/6], i);}
             }
         } else {
             newTriangles = currMesh.triangles;
@@ -710,21 +716,28 @@ public class PenroseGenerator : MonoBehaviour
 
         // delete tiles array, and call delete on each tile
         for (int i = (chunkToTileRange[chunk] * 7000); i < (chunkToTileRange[chunk]*7000) + 7000; i++) {
-            if (tiles[i] != null && tiles[i].filled) {
+            if (tiles[i] != null) {
+                if (tiles[i].filled) {
+                    deleteRhombFromMesh(tiles[i], false); // could modify this so it just deletes tris in mesh.
+                    tiles[i].tris_in_mesh.Clear();
+                }
                 // clear out facemap for each face:
                 for (int j = 0; j < 6; j++) {
                     Vector3 key = RoundToNearestHundredth(tiles[i].vertices[triangles[j*6]] + tiles[i].vertices[triangles[(j*6)+1]] + tiles[i].vertices[triangles[(j*6)+2]] + tiles[i].vertices[triangles[(j*6)+5]]);
-                    if (faceMap[key].Item1.Item1 == null && faceMap[key].Item1.Item2 == null) {
-                        faceMap.Remove(key);
-                    } else if (faceMap[key].Item1.Item1 == tiles[i]) {
+                    if (faceMap[key].Item1.Item1 == tiles[i]) {
                         faceMap[key] = ((null, faceMap[key].Item1.Item2), (Vector3.zero, faceMap[key].Item2.Item2), (-1, faceMap[key].Item3.Item2));
                     } else if (faceMap[key].Item1.Item2 == tiles[i]) {
                         faceMap[key] = ((faceMap[key].Item1.Item1, null), (faceMap[key].Item2.Item1, Vector3.zero), (faceMap[key].Item3.Item1, -1));
                     } else {
-                        Debug.Log("facemap doesn't have the rhomb thats deleting.");
+                        Debug.Log("somethings amiss");
+                    }
+                    if (faceMap[key].Item1.Item1 == null && faceMap[key].Item1.Item2 == null) {
+                        faceMap.Remove(key);
                     }
                 }
-                deleteRhombFromMesh(tiles[i]); // could modify this so it just deletes tris in mesh.
+                tiles[i] = null;
+                globalNormals[i] = Vector3.zero;
+                globalVertices[i] = Vector3.zero;
             }
         }
         
