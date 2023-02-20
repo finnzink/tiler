@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 public class PlayerMovement : MonoBehaviour
 {
@@ -27,7 +28,7 @@ public class PlayerMovement : MonoBehaviour
     private Rigidbody rb;
     private bool startingSnap;
 
-    void Start()
+    IEnumerator Start()
     {
         instantiatedSphere = GameObject.Instantiate(spherePrefab);
         instantiatedSphere.name = "head";
@@ -50,6 +51,11 @@ public class PlayerMovement : MonoBehaviour
         }
         icos.Add(new Vector3(0.0f, 0.0f, 1.0f));
         terrainGenator = GameObject.Find("TerrainController");
+
+        while (!script1.start_done) {
+            yield return null;
+        }
+        script1.genChunk(new Vector3(0,0,0));
     }
 
     void OnGUI()
@@ -184,24 +190,39 @@ public class PlayerMovement : MonoBehaviour
         Vector3 newChunk = new Vector3(0, 0, 0);
         bool chunkChanged = false;
 
-        for (int i = 0; i < 6; i++) {
-            float dotProd = Vector3.Dot(icos[i], playerBody.position);
-            basisOffset[i] = dotProd; 
-        }
+        // for (int i = 0; i < 6; i++) {
+        //     float dotProd = Vector3.Dot(icos[i], playerBody.position);
+        //     basisOffset[i] = dotProd; 
+        // }
 
         for (int i = 0; i < 3; i++) {
-            float dotProd = Vector3.Dot(icos[i], playerBody.position);
-            basisOffset[i] = dotProd;
-            newChunk[i] = (int)((dotProd - (Mathf.Sign(dotProd) * 4))/8);
+            // float dotProd = Vector3.Dot(icos[i], playerBody.position);
+            // basisOffset[i] = dotProd;
+            // newChunk[i] = (int)((dotProd - (Mathf.Sign(dotProd) * 4))/8);
             newChunk[i] = (int)(playerBody.position[i]/8);
+            // newChunk[1] = 0;
             if (newChunk[i] != currChunk[i]) {
                 chunkChanged = true;
             }
         }
         if (chunkChanged) {
+            DateTime startTime = DateTime.Now;
+
+            script1.genChunk(newChunk * 8);
+
+            DateTime endTime = DateTime.Now;
+            TimeSpan elapsedTime = endTime - startTime;
+            Debug.Log("Time taken for chunk generation: " + elapsedTime.TotalMilliseconds + " ms");
+
+            // startTime = DateTime.Now;
+
+            // script1.deleteChunk(currChunk * 8);
+
+            // endTime = DateTime.Now;
+            // elapsedTime = endTime - startTime;
+            // Debug.Log("Time taken for chunk deletion: " + elapsedTime.TotalMilliseconds + " ms");
+
             currChunk = newChunk;
-            
-            // script1.genChunk(newChunk);
         }
     }
 

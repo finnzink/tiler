@@ -61,6 +61,8 @@ public class PenroseGenerator : MonoBehaviour
 
     public Dictionary<Vector3, int> chunkToTileRange = new Dictionary<Vector3, int>();
 
+    public bool start_done = false;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -120,14 +122,16 @@ public class PenroseGenerator : MonoBehaviour
         }
         icos.Add(new Vector3(0.0f, 0.0f, 1.0f));
 
-        for (int i = 0; i < 2; i++) {
-            for (int j = 0; j < 1; j++) {
-                genChunk(new Vector3(i*8, 0, j*8));
-            }
-        }
+        // for (int i = 0; i < 2; i++) {
+        //     for (int j = 0; j < 1; j++) {
+                // genChunk(new Vector3(0, 0, 0));
+        //     }
+        // }
 
-        deleteChunk(new Vector3(0, 0, 0));
-        genChunk(new Vector3(0, 0, 0));
+        // deleteChunk(new Vector3(0, 0, 0));
+        // genChunk(new Vector3(0, 0, 0));
+
+        start_done = true;
     }
 
     // Update is called once per frame
@@ -489,7 +493,7 @@ public class PenroseGenerator : MonoBehaviour
 
         if (center[1] < 2) {
             curr.filled = true;
-            addRhombToMesh(curr, false);
+            // addRhombToMesh(curr, false);
         }
     }
 
@@ -692,7 +696,7 @@ public class PenroseGenerator : MonoBehaviour
 
     }
 
-    void deleteChunk(Vector3 chunk) {
+    public void deleteChunk(Vector3 chunk) {
         int[] triangles = new int[]
         {
             0, 2, 1, // 0, 1, 2, 3
