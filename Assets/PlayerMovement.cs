@@ -146,7 +146,7 @@ public class PlayerMovement : MonoBehaviour
                 transform.position = newPos;
                 startingSnap = false;
             } else if (posPts[1] != Vector3.zero) {
-                Debug.Log("midbumped");
+                // Debug.Log("midbumped");
                 if (climbPoint == Vector3.zero) {climbPoint = posPts[1];}
                 if (oldPosPts[0] != Vector3.zero && Mathf.Abs(climbPoint.y - oldPosPts[0].y) > .2) {maxClimb = oldPosPts[0];}
                 if (oldPosPts[2] != Vector3.zero && Mathf.Abs(climbPoint.y - oldPosPts[0].y) > .2) {minClimb = oldPosPts[2];}
@@ -208,19 +208,19 @@ public class PlayerMovement : MonoBehaviour
         if (chunkChanged) {
             DateTime startTime = DateTime.Now;
 
-            script1.genChunk(newChunk * 8);
+            if (script1.chunkToTileRange.ContainsKey(currChunk * 8)) { script1.deleteChunk(currChunk * 8); }
 
             DateTime endTime = DateTime.Now;
             TimeSpan elapsedTime = endTime - startTime;
+            Debug.Log("Time taken for chunk deletion: " + elapsedTime.TotalMilliseconds + " ms");
+
+            startTime = DateTime.Now;
+
+            if (!script1.chunkToTileRange.ContainsKey(newChunk * 8)) { script1.genChunk(newChunk * 8); }
+
+            endTime = DateTime.Now;
+            elapsedTime = endTime - startTime;
             Debug.Log("Time taken for chunk generation: " + elapsedTime.TotalMilliseconds + " ms");
-
-            // startTime = DateTime.Now;
-
-            // script1.deleteChunk(currChunk * 8);
-
-            // endTime = DateTime.Now;
-            // elapsedTime = endTime - startTime;
-            // Debug.Log("Time taken for chunk deletion: " + elapsedTime.TotalMilliseconds + " ms");
 
             currChunk = newChunk;
         }

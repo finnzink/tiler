@@ -493,7 +493,7 @@ public class PenroseGenerator : MonoBehaviour
 
         if (center[1] < 2) {
             curr.filled = true;
-            // addRhombToMesh(curr, false);
+            addRhombToMesh(curr, false);
         }
     }
 
@@ -589,14 +589,16 @@ public class PenroseGenerator : MonoBehaviour
         for (int i = 0; i < trianglesToDel.Count; i++) {
             if (debug) {Debug.Log("DELETED TRIANGLE");}
             // Debug.Log("deleting index " + trianglesToDel[i]);
-            newTriangles[trianglesToDel[i]] = 0;
+            newTriangles[trianglesToDel[i]] = i%3;
             freeTriangles.Add(trianglesToDel[i]);
         }
 
         globalMesh.triangles = newTriangles;
+        globalMesh.RecalculateBounds();
 
         terrainObj.GetComponent<MeshFilter>().sharedMesh = globalMesh;
         terrainObj.GetComponent<MeshCollider>().sharedMesh = globalMesh;
+
     }
 
     void deleteRhombFromMesh(Tile toAdd, bool debug) {
@@ -685,11 +687,12 @@ public class PenroseGenerator : MonoBehaviour
 
         // delete triangles, replace with 0's
         for (int i = 0; i < trianglesToDel.Count; i++) {
-            newTriangles[trianglesToDel[i]] = 0;
+            newTriangles[trianglesToDel[i]] = i%3;
             freeTriangles.Add(trianglesToDel[i]);
         }
 
         globalMesh.triangles = newTriangles;
+        globalMesh.RecalculateBounds();
 
         terrainObj.GetComponent<MeshFilter>().sharedMesh = globalMesh;
         terrainObj.GetComponent<MeshCollider>().sharedMesh = globalMesh;
@@ -745,7 +748,7 @@ public class PenroseGenerator : MonoBehaviour
             }
         }
         
-        freeChunks.Add(chunkToTileRange[chunk] * 7000);
+        freeChunks.Add(chunkToTileRange[chunk]);
         chunkToTileRange.Remove(chunk);
     }
 
